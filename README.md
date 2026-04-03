@@ -2,6 +2,8 @@
 
 ![Landing page: hero and live application feed preview](docs/readme-landing.png)
 
+![Dashboard: main app shell, live feed, and navigation](docs/readme-dashboard.png)
+
 ## What it does
 
 AutoApply is built for students and new grads who need to apply at high volume without living inside forms and spreadsheets. You upload your CV once, complete a short onboarding profile, and the product is designed to carry the workload from there: surfacing roles, tailoring materials, tracking submissions, and keeping interviews organized.
@@ -41,4 +43,4 @@ npm install
 npm run dev
 ```
 
-Then open the URL Vite prints (usually `http://localhost:5173`). Use **Skip to Demo** on the landing page to explore the dashboard without signing in.
+Then open the URL Vite prints (usually `http://localhost:5173`). Use **Skip to main** in the corner of the landing page to open the dashboard without signing in.

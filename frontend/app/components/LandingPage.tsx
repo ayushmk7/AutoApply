@@ -19,6 +19,15 @@ export default function LandingPage({ onGetStarted, onSkipToDemo }: LandingPageP
 
   return (
     <div className="relative z-10 w-full min-h-screen">
+      <button
+        type="button"
+        onClick={onSkipToDemo}
+        className="btn-micro fixed right-4 top-4 z-[60] rounded-[var(--radius-md)] px-3 py-1.5 text-xs glass-panel md:right-6 md:top-6"
+        style={{ fontWeight: 500 }}
+      >
+        Skip to main
+      </button>
+
       <section className="flex min-h-screen items-center justify-center px-6">
         <div className="mx-auto max-w-5xl text-center">
           <motion.h1
@@ -47,7 +56,7 @@ export default function LandingPage({ onGetStarted, onSkipToDemo }: LandingPageP
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-            className="flex flex-col items-center justify-center gap-4 sm:flex-row"
+            className="flex justify-center"
           >
             <button
               type="button"
@@ -59,14 +68,6 @@ export default function LandingPage({ onGetStarted, onSkipToDemo }: LandingPageP
               }}
             >
               Get Started
-            </button>
-
-            <button
-              type="button"
-              onClick={onSkipToDemo}
-              className="btn-micro rounded-[var(--radius-lg)] px-8 py-4 glass-panel"
-            >
-              Skip to Demo
             </button>
           </motion.div>
         </div>
