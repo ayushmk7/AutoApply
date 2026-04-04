@@ -2,8 +2,6 @@
 
 ![Landing page: hero and live application feed preview](docs/readme-landing.png)
 
-![Dashboard: main app shell, live feed, and navigation](docs/readme-dashboard.png)
-
 ## What it does
 
 AutoApply is built for students and new grads who need to apply at high volume without living inside forms and spreadsheets. You upload your CV once, complete a short onboarding profile, and the product is designed to carry the workload from there: surfacing roles, tailoring materials, tracking submissions, and keeping interviews organized.
