@@ -184,6 +184,29 @@ steps:
       output: DB row created, sheet row appended, live feed event emitted
 ```
 
+**workflow: apply_from_pasted_url**
+```
+trigger: user submits job or application URL (+ optional pasted JD text if fetch fails)
+steps:
+  1. fetch_url
+     tool: playwright or http_fetch (server)
+     input: URL
+     output: raw HTML / redirect chain / error (blocked, login, 404)
+  2. extract_listing
+     tool: claude_api (+ optional cheerio/readability for boilerplate stripping)
+     input: HTML text + JSON-LD JobPosting if present + Open Graph fields
+     output: structured listing object (title, company, description, location) OR empty with reason
+  3. jd_fallback
+     tool: none (user interaction)
+     conditional: step 2 low confidence or fetch failed
+     input: user-pasted job description
+     output: same structured listing object
+  4. continue_as_apply_to_job
+     tool: internal (invoke apply_to_job from step analyze_job onward)
+     input: structured listing + application URL + user profile
+     output: same as apply_to_job (artifacts + submit or manual_needed)
+```
+
 **workflow: process_response**
 ```
 trigger: agentmail_webhook (inbound email received)

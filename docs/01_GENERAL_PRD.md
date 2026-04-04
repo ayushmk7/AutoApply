@@ -108,6 +108,16 @@ Upload your CV. Get interviews. Everything in between is automated.
 6. 5 business day timer set. If no response, follow-up email drafted and queued for user approval.
 7. All tracked in application row.
 
+### 5.6 Apply from pasted URL (user-initiated)
+
+1. User pastes a URL in the product UI: either a **public job posting** (company careers page, board aggregator link, etc.) or a **direct application** link (e.g. Greenhouse, Lever).
+2. System attempts to **fetch and extract** job content: HTML text, `JobPosting` structured data, and Open Graph metadata where available. If fetch is blocked (login wall, bot protection, empty client-rendered shell), user is prompted to **paste the job description text** as fallback; processing continues from that text.
+3. Claude normalizes the listing (title, company, location, requirements, optional custom-question prompts visible on the page).
+4. The pipeline **reuses the same application steps** as queued jobs: tailored resume, ATS score preview with revision loop, cover letter if indicated, custom answers from questionnaire + essay bank, ATS type detection from URL patterns.
+5. Output is an **application preparation kit**: PDFs/links for documents, answer map, ATS score summary, and a **checklist** (required uploads, attestations, any fields the automation could not infer). Browser automation submit runs when the session is accessible; otherwise the row is flagged **manual completion** with the direct link and all pre-filled artifacts—matching the existing failure mode in §5.3.
+
+**Feasibility note:** End-to-end auto-submit from an arbitrary pasted URL is **not guaranteed** (authentication, CAPTCHA, ToS, and dynamic forms vary by site). Delivering **everything needed to apply**—documents, drafts, scoring, and structured handoff—is **in scope** and technically realistic; full unattended submit remains **best-effort** per ATS, consistent with the rest of the product.
+
 ---
 
 ## 6. Features
@@ -155,6 +165,10 @@ Bidirectional sync. Sheet mirrors the application tracker. User can add manual e
 ### 6.11 Settings
 
 Auto-apply threshold, daily application limit, template selection, CV/profile editing, essay bank management, integration toggles (Sheets, Calendar, LinkedIn).
+
+### 6.12 Apply from link (URL intake)
+
+Single-field (or form) UX: user submits an application or job-posting URL. Backend resolves text via fetch + structured-data extraction, with JD paste fallback. Produces the same artifacts as pipeline applications (§5.3): tailored resume, optional cover letter, custom-answer drafts, ATS preview, platform detection, tracker row, and live-feed event. Surfaces a completion checklist and manual handoff when the portal cannot be driven automatically.
 
 ---
 

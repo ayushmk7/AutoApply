@@ -16,6 +16,7 @@ You get **visibility** (what’s queued, what’s live, what scored well) withou
 
 ## Features
 
+- **Apply from a link**: paste a job posting or application URL and get a full preparation package—parsed role and company (when the page exposes them), tailored résumé and cover letter, ATS score preview, draft short answers from your profile, ATS/platform detection, and a submit checklist. Public listings work best; login-only or heavily scripted portals may require you to paste the job description or finish submit manually while still reusing generated materials.
 - One-time CV upload with structured parsing and an editable profile from onboarding
 - Onboarding questionnaire, résumé template selection, and optional hooks for LinkedIn connections, calendar, and Google Sheets
 - Continuous job discovery from aggregated listing sources, with fit scoring and profile matching

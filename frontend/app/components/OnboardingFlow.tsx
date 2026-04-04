@@ -303,7 +303,7 @@ export default function OnboardingFlow({
                   </p>
                   <p className="mb-3 text-sm leading-relaxed" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
                     We use the same LaTeX as{' '}
-                    <code className="mono rounded bg-[var(--glass-nested)] px-1.5 py-0.5 text-xs">template.tex</code>
+                    <code className="mono rounded bg-[var(--glass-nested)] px-1.5 py-0.5 text-xs">templates/template.tex</code>
                     — Jake Gutierrez&apos;s template (MIT, from{' '}
                     <a
                       href="https://github.com/sb2nov/resume"
@@ -395,7 +395,7 @@ export default function OnboardingFlow({
                 <p>
                   <span style={{ fontWeight: 800 }}>Template:</span> Jake&apos;s résumé (LaTeX,{' '}
                   <span className="mono text-sm" style={{ fontWeight: 400 }}>
-                    template.tex
+                    templates/template.tex
                   </span>
                   )
                 </p>
