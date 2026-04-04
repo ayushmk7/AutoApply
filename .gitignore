@@ -5,3 +5,8 @@ dist/
 !.env.example
 .DS_Store
 *.log
+
+# Local credentials / key material (never commit)
+*.pem
+*-firebase-adminsdk-*.json
+*credentials*.json

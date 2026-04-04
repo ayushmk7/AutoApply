@@ -206,7 +206,7 @@ export default function Settings() {
                 </p>
                 <p className="mb-3 text-sm leading-relaxed" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
                   All generated résumés follow the LaTeX in{' '}
-                  <code className="mono rounded bg-[var(--glass-nested)] px-1.5 py-0.5 text-xs">templates/template.tex</code>
+                  <code className="mono rounded bg-[var(--glass-nested)] px-1.5 py-0.5 text-xs">backend/templates/template.tex</code>
                   : Jake Gutierrez&apos;s MIT-licensed template (based on{' '}
                   <a
                     href="https://github.com/sb2nov/resume"

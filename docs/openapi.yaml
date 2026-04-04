@@ -1,0 +1,95 @@
+openapi: 3.0.3
+info:
+  title: AutoApply API
+  version: 1.0.0
+  description: |
+    Phase 20.1 — REST contract (Bearer `Authorization` for protected routes).
+    Error shape: `{ "error": string, "code"?: string, "details"?: unknown }`.
+servers:
+  - url: /api
+    description: Same-origin (or Vite proxy in development)
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: {}
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      summary: Register / ensure user document
+      security: [bearerAuth: []]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: OK
+  /auth/skip:
+    post:
+      summary: Demo session token (rate-limited)
+      security: []
+      responses:
+        '200':
+          description: Demo JWT
+  /jobs:
+    get:
+      summary: Job board
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Job rows
+  /jobs/from-url:
+    post:
+      summary: Apply from pasted URL / JD
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                job_description_text: { type: string }
+                force_manual_submit: { type: boolean }
+      responses:
+        '202':
+          description: Queued
+  /feed:
+    get:
+      summary: Feed history
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: Events page
+  /metrics:
+    get:
+      summary: Queue metrics (optional X-Metrics-Key)
+      security: []
+      parameters:
+        - in: header
+          name: X-Metrics-Key
+          schema: { type: string }
+      responses:
+        '200':
+          description: Metrics snapshot

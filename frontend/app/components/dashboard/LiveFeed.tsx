@@ -4,6 +4,7 @@ import { CheckCircle2, CircleDot } from 'lucide-react';
 import { useModals } from '../../context/ModalContext';
 import { demoFeedEvents, demoUpNextJobs, type DemoFeedEvent } from '../../data/demoData';
 import { useDashboardContext } from '../Dashboard';
+import ApiLiveFeedPanel from './ApiLiveFeedPanel';
 
 function getEventStyle(status: DemoFeedEvent['status']) {
   switch (status) {
@@ -101,6 +102,7 @@ export default function LiveFeed() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      {!demoMode && <ApiLiveFeedPanel />}
       <div className="mb-8 flex items-center justify-center gap-3">
         <h1 style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>Activity</h1>
         <div className="size-2.5 animate-pulse rounded-full bg-[#00B341]" title="System active" />

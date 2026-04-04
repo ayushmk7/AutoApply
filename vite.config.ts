@@ -1,30 +1,43 @@
-import { defineConfig } from 'vite'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
+import path from 'path';
+import { fileURLToPath } from 'url';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig, loadEnv } from 'vite';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
-  root: path.resolve(__dirname, 'frontend'),
-  build: {
-    outDir: path.resolve(__dirname, 'dist'),
-    emptyOutDir: true,
-  },
-  plugins: [
-    // The React and Tailwind plugins are both required for Make, even if
-    // Tailwind is not being actively used – do not remove them
-    react(),
-    tailwindcss(),
-  ],
-  resolve: {
-    alias: {
-      // Alias @ to the src directory
-      '@': path.resolve(__dirname, './frontend/app'),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, __dirname, '');
+  const apiProxyTarget = env.VITE_DEV_PROXY_API ?? 'http://127.0.0.1:3001';
+  const wsProxyTarget = env.VITE_DEV_PROXY_WS ?? 'ws://127.0.0.1:3001';
+
+  return {
+    root: path.resolve(__dirname, 'frontend'),
+    envDir: __dirname,
+    build: {
+      outDir: path.resolve(__dirname, 'dist'),
+      emptyOutDir: true,
     },
-  },
-
-  // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
-  assetsInclude: ['**/*.svg', '**/*.csv'],
-})
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './frontend/app'),
+      },
+    },
+    assetsInclude: ['**/*.svg', '**/*.csv'],
+    server: {
+      port: Number(env.VITE_DEV_PORT) || 5173,
+      proxy: {
+        '/api': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: wsProxyTarget,
+          ws: true,
+          changeOrigin: true,
+        },
+      },
+    },
+  };
+});

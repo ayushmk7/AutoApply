@@ -5,8 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:stack": "concurrently -k -c blue,magenta,green -n api,worker,vite \"npm run server:dev\" \"npm run server:worker\" \"vite\"",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server:dev": "npm run dev --prefix backend/server",
+    "server:build": "npm run build --prefix backend/server",
+    "server:start": "npm run start --prefix backend/server",
+    "server:worker": "npm run worker --prefix backend/server",
+    "server:test": "npm run test --prefix backend/server",
+    "ci": "npm run server:test && npm run server:build && npm run build"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -40,11 +47,14 @@
     "@radix-ui/react-toggle": "1.1.2",
     "@radix-ui/react-toggle-group": "1.1.2",
     "@radix-ui/react-tooltip": "1.1.8",
+    "axios": "^1.14.0",
     "canvas-confetti": "1.9.4",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
+    "concurrently": "^9.2.0",
     "date-fns": "3.6.0",
+    "firebase": "^11.6.0",
     "embla-carousel-react": "8.6.0",
     "input-otp": "1.4.2",
     "lucide-react": "0.487.0",

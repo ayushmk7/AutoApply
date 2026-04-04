@@ -5,6 +5,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { useModals } from '../../context/ModalContext';
 import { demoJobs, type DemoJob } from '../../data/demoData';
 import { useDashboardContext } from '../Dashboard';
+import ApiJobsList from './ApiJobsList';
+import ApplyFromUrlPanel from './ApplyFromUrlPanel';
 
 export default function JobsBoard() {
   const { demoMode } = useDashboardContext();
@@ -74,6 +76,12 @@ export default function JobsBoard() {
 
   return (
     <div className="mx-auto max-w-7xl">
+      {!demoMode && (
+        <>
+          <ApplyFromUrlPanel />
+          <ApiJobsList />
+        </>
+      )}
       <div className="mb-8">
         <div className="mb-6 text-center">
           <h1 style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>Jobs Board</h1>

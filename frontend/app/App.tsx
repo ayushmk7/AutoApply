@@ -5,10 +5,12 @@ import Dashboard from './components/Dashboard';
 import OnboardingFlow from './components/OnboardingFlow';
 import { ModalProvider } from './context/ModalContext';
 import { ModalHost } from './components/modals/ModalHost';
+import { useApiSession } from './context/ApiSessionContext';
 
 export type AppScreen = 'landing' | 'login' | 'onboarding' | 'dashboard';
 
 export default function App() {
+  const { signInDemo, signOutSession } = useApiSession();
   const [screen, setScreen] = useState<AppScreen>('landing');
   const [demoMode, setDemoMode] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState(1);
@@ -20,8 +22,16 @@ export default function App() {
           <LandingPage
             onGetStarted={() => setScreen('login')}
             onSkipToDemo={() => {
-              setDemoMode(true);
-              setScreen('dashboard');
+              void (async () => {
+                try {
+                  await signInDemo();
+                  setDemoMode(true);
+                  setScreen('dashboard');
+                } catch {
+                  setDemoMode(true);
+                  setScreen('dashboard');
+                }
+              })();
             }}
           />
         )}
@@ -33,8 +43,16 @@ export default function App() {
               setScreen('onboarding');
             }}
             onSkipToDemo={() => {
-              setDemoMode(true);
-              setScreen('dashboard');
+              void (async () => {
+                try {
+                  await signInDemo();
+                  setDemoMode(true);
+                  setScreen('dashboard');
+                } catch {
+                  setDemoMode(true);
+                  setScreen('dashboard');
+                }
+              })();
             }}
           />
         )}
@@ -54,6 +72,7 @@ export default function App() {
                 window.scrollTo(0, 0);
               }}
               onSignOut={() => {
+                void signOutSession();
                 setScreen('landing');
                 setDemoMode(false);
               }}
