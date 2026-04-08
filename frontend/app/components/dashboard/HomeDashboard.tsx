@@ -2,15 +2,9 @@ import { motion } from 'motion/react';
 import { useMemo } from 'react';
 import { ArrowRight, FileText, List, Settings } from 'lucide-react';
 import { useModals } from '../../context/ModalContext';
-import { demoFeedEvents, demoUpNextJobs, type DemoFeedEvent } from '../../data/demoData';
+import { demoApplications, demoFeedEvents, demoUpNextJobs, type DemoFeedEvent } from '../../data/demoData';
+import { useDashboardContext } from '../Dashboard';
 import type { DashboardPage } from './MobileNav';
-
-const pipelineStats = [
-  { label: 'Applied', value: '47', color: '#0066FF' },
-  { label: 'Waiting', value: '12', color: '#F5A623' },
-  { label: 'Interviews', value: '3', color: '#00B341' },
-  { label: 'Offers', value: '2', color: '#00B341' },
-];
 
 const attentionStatuses: DemoFeedEvent['status'][] = ['captcha', 'interview', 'failed'];
 
@@ -37,6 +31,7 @@ function tileMotion(delay: number) {
 
 export default function HomeDashboard({ onNavigate }: { onNavigate: (page: DashboardPage) => void }) {
   const { openAts, openInterview } = useModals();
+  const { demoMode } = useDashboardContext();
 
   const recentEvents = useMemo(() => demoFeedEvents.slice(0, 4), []);
   const attentionEvents = useMemo(
@@ -44,6 +39,27 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
     [],
   );
   const upNextPreview = useMemo(() => demoUpNextJobs.slice(0, 3), []);
+
+  const pipelineStats = useMemo(() => {
+    if (!demoMode) {
+      return [
+        { label: 'Applied', value: '0', color: '#0066FF' },
+        { label: 'Waiting', value: '0', color: '#F5A623' },
+        { label: 'Interviews', value: '0', color: '#00B341' },
+        { label: 'Offers', value: '0', color: '#00B341' },
+      ];
+    }
+    const applied = demoApplications.filter((a) => a.status !== 'manual_needed').length;
+    const waiting = demoApplications.filter((a) => a.status === 'waiting' || a.status === 'applied').length;
+    const interviews = demoApplications.filter((a) => a.status === 'interview').length;
+    const offers = demoApplications.filter((a) => a.status === 'offer').length;
+    return [
+      { label: 'Applied', value: String(applied), color: '#0066FF' },
+      { label: 'Waiting', value: String(waiting), color: '#F5A623' },
+      { label: 'Interviews', value: String(interviews), color: '#00B341' },
+      { label: 'Offers', value: String(offers), color: '#00B341' },
+    ];
+  }, [demoMode]);
 
   return (
     <div className="mx-auto max-w-7xl">

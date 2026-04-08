@@ -35,9 +35,11 @@ const demoParsedCvSections: { title: string; body: string }[] = [
 export default function Settings() {
   const { onEditParsedCv, onSignOut } = useDashboardContext();
   const [threshold, setThreshold] = useState(75);
-  const [sheetsOn, setSheetsOn] = useState(true);
-  const [sheetId] = useState('1AbC_dEmo_SheetId_42');
+  const [sheetsOn, setSheetsOn] = useState(false);
+  const [sheetId] = useState('');
   const [calendarConnected, setCalendarConnected] = useState(false);
+  const [cvUploadDate] = useState<string | null>(null);
+  const [linkedInCount] = useState<number | null>(null);
 
   const [essays, setEssays] = useState({
     technical: '',
@@ -72,7 +74,7 @@ export default function Settings() {
                 </label>
                 <input
                   type="text"
-                  defaultValue="Alex Chen"
+                  placeholder="Your name"
                   className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
                   style={{ fontWeight: 200 }}
                 />
@@ -83,7 +85,7 @@ export default function Settings() {
                 </label>
                 <input
                   type="email"
-                  defaultValue="alex@cmu.edu"
+                  placeholder="you@university.edu"
                   className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
                   style={{ fontWeight: 200 }}
                 />
@@ -95,7 +97,7 @@ export default function Settings() {
               </label>
               <input
                 type="tel"
-                defaultValue="+1 (555) 123-4567"
+                placeholder="+1 (555) 000-0000"
                 className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
                 style={{ fontWeight: 200 }}
               />
@@ -108,9 +110,11 @@ export default function Settings() {
               >
                 Re-upload CV
               </button>
-              <p className="mt-2 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
-                Last uploaded: Mar 15, 2026
-              </p>
+              {cvUploadDate && (
+                <p className="mt-2 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+                  Last uploaded: {cvUploadDate}
+                </p>
+              )}
             </div>
 
             <Collapsible open={parsedCvOpen} onOpenChange={setParsedCvOpen}>
@@ -294,7 +298,7 @@ export default function Settings() {
                   <div className="text-xs" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
                     Sync applications to spreadsheet
                   </div>
-                  {sheetsOn && (
+                  {sheetsOn && sheetId && (
                     <p className="mono mt-1 text-xs" style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>
                       Sheet ID: {sheetId}
                     </p>
@@ -337,7 +341,7 @@ export default function Settings() {
                 <div>
                   <div style={{ fontWeight: 800 }}>LinkedIn Connections</div>
                   <div className="text-xs" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
-                    142 connections loaded
+                    {linkedInCount !== null ? `${linkedInCount} connections loaded` : 'No connections loaded'}
                   </div>
                 </div>
               </div>

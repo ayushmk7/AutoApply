@@ -451,7 +451,7 @@ export const demoInterviewDetail = {
   interviewDate: 'Apr 8, 2026',
   format: 'Video' as const,
   interviewers: ['Jamie L.', 'Riley K.'],
-  calendarLink: 'https://calendar.google.com/example',
+  calendarLink: '',
   prepOverview:
     'Google values clarity, data-backed tradeoffs, and coding fluency under time pressure.',
   talkingPoints: ['System design for read-heavy API', 'Conflict resolution in team project', 'Complexity analysis habits'],

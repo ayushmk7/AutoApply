@@ -7,6 +7,7 @@ import { jobsRouter } from './jobs.js';
 import { metricsRouter } from './metrics.js';
 import { profileRouter } from './profile.js';
 import { sheetsRouter } from './sheets.js';
+import { waitlistRouter } from './waitlist.js';
 import { webhooksRouter } from './webhooks.js';
 
 export const rootRouter = Router();
@@ -24,5 +25,6 @@ apiRouter.use('/profile', profileRouter);
 apiRouter.use('/jobs', jobsRouter);
 apiRouter.use('/applications', applicationsRouter);
 apiRouter.use('/sheets', sheetsRouter);
+apiRouter.use('/waitlist', waitlistRouter);
 apiRouter.use('/', feedRouter);
 apiRouter.use('/webhooks', webhooksRouter);

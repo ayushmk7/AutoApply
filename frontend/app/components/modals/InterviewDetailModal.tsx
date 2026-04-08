@@ -50,7 +50,7 @@ export function InterviewDetailModal({
 }) {
   const [notes, setNotes] = useState('');
   const [thankYou, setThankYou] = useState(
-    `Hi team,\n\nThank you for the conversation about ${payload.role}. I enjoyed discussing…\n\nBest,\nAlex`,
+    `Hi team,\n\nThank you for the conversation about ${payload.role}. I enjoyed discussing…\n\nBest,`,
   );
 
   return (
@@ -94,13 +94,17 @@ export function InterviewDetailModal({
               <span style={{ fontWeight: 800 }}>Interviewers:</span>{' '}
               {payload.interviewers.join(', ')}
             </p>
-            <a
-              href={payload.calendarLink}
-              className="text-sm underline"
-              style={{ color: '#0066FF', fontWeight: 200 }}
-            >
-              Calendar event
-            </a>
+            {payload.calendarLink && (
+              <a
+                href={payload.calendarLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm underline"
+                style={{ color: '#0066FF', fontWeight: 200 }}
+              >
+                Calendar event
+              </a>
+            )}
           </div>
           <div className="glass-nested rounded-[var(--radius-xl)] p-5">
             <h4 className="mb-3" style={{ fontFamily: 'var(--font-display)', fontWeight: 800 }}>

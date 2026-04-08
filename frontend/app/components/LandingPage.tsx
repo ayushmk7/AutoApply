@@ -1,9 +1,122 @@
-import { motion } from 'motion/react';
-import { Check } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Check, X } from 'lucide-react';
+import { apiFetchJson } from '../lib/api';
 
 interface LandingPageProps {
   onGetStarted: () => void;
   onSkipToDemo: () => void;
+}
+
+function WaitlistModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!email.trim()) { setError('Email is required.'); return; }
+    setError(null);
+    setBusy(true);
+    try {
+      await apiFetchJson('/api/waitlist', {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined }),
+      });
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="glass-panel relative w-full max-w-md p-8"
+        style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(255,255,255,0.4)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full glass-nested transition-opacity hover:opacity-70"
+          aria-label="Close"
+        >
+          <X className="size-4" strokeWidth={2} />
+        </button>
+
+        {done ? (
+          <div className="py-4 text-center">
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-[#00B341]">
+              <Check className="size-6 text-white" strokeWidth={3} />
+            </div>
+            <h3 className="mb-2" style={{ fontWeight: 900, fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>
+              You&apos;re on the list!
+            </h3>
+            <p style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+              We&apos;ll reach out when we&apos;re ready for you.
+            </p>
+          </div>
+        ) : (
+          <>
+            <h3 className="mb-2" style={{ fontWeight: 900, fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>
+              Join the Waitlist
+            </h3>
+            <p className="mb-6" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+              Be first to know when AutoApply opens up.
+            </p>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name (optional)"
+                className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
+                style={{ fontWeight: 200 }}
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@college.edu"
+                className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
+                style={{ fontWeight: 200 }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+              />
+            </div>
+            {error && (
+              <p className="mt-3 text-sm" style={{ color: '#FF3B30', fontWeight: 400 }}>
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void submit()}
+              className="btn-micro mt-5 w-full rounded-[var(--radius-lg)] py-3 text-white disabled:opacity-50"
+              style={{ background: '#0066FF', boxShadow: '0 8px 32px rgba(0,102,255,0.3)' }}
+            >
+              {busy ? 'Joining…' : 'Join Waitlist'}
+            </button>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
 }
 
 const feedPreviewItems = [
@@ -16,9 +129,13 @@ const feedPreviewItems = [
 
 export default function LandingPage({ onGetStarted, onSkipToDemo }: LandingPageProps) {
   const doubledFeed = [...feedPreviewItems, ...feedPreviewItems];
+  const [showWaitlist, setShowWaitlist] = useState(false);
 
   return (
     <div className="relative z-10 w-full min-h-screen">
+      <AnimatePresence>
+        {showWaitlist && <WaitlistModal onClose={() => setShowWaitlist(false)} />}
+      </AnimatePresence>
       <button
         type="button"
         onClick={onSkipToDemo}
@@ -56,7 +173,7 @@ export default function LandingPage({ onGetStarted, onSkipToDemo }: LandingPageP
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-            className="flex justify-center"
+            className="flex flex-wrap items-center justify-center gap-4"
           >
             <button
               type="button"
@@ -68,6 +185,14 @@ export default function LandingPage({ onGetStarted, onSkipToDemo }: LandingPageP
               }}
             >
               Get Started
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowWaitlist(true)}
+              className="btn-micro rounded-[var(--radius-lg)] px-8 py-4 glass-panel"
+              style={{ fontWeight: 800 }}
+            >
+              Join Waitlist
             </button>
           </motion.div>
         </div>

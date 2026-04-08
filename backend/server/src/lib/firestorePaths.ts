@@ -13,6 +13,7 @@ export const COLLECTION_JOB_SKIPS = 'job_skips';
 export const COLLECTION_FEED_EVENTS = 'feed_events';
 export const COLLECTION_TOKENS = 'tokens';
 export const COLLECTION_AGENTMAIL_DEDUPE = 'agentmail_webhook_dedupe';
+export const COLLECTION_WAITLIST = 'waitlist';
 export const DOC_STATS_GLOBAL = 'global';
 
 export function userDocumentRef(db: Firestore, uid: string) {
