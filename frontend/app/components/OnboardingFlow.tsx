@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ScreenBackButton from './ScreenBackButton';
 import {
   Accordion,
   AccordionContent,
@@ -16,9 +17,11 @@ const STEPS = ['Upload CV', 'Review', 'Questionnaire', 'Preferences', 'Confirm']
 
 export default function OnboardingFlow({
   onComplete,
+  onExit,
   initialStep = 1,
 }: {
   onComplete: () => void;
+  onExit: () => void;
   initialStep?: number;
 }) {
   const [step, setStep] = useState(() => Math.min(5, Math.max(1, initialStep)));
@@ -71,8 +74,14 @@ export default function OnboardingFlow({
     </div>
   );
 
+  const handleBack = () => {
+    if (step > 1) setStep((s) => s - 1);
+    else onExit();
+  };
+
   return (
     <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-12">
+      <ScreenBackButton ariaLabel="Back" onClick={handleBack} />
       <motion.div
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}

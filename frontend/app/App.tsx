@@ -37,6 +37,10 @@ export default function App() {
         )}
         {screen === 'login' && (
           <LoginPage
+            onBackToLanding={() => {
+              setScreen('landing');
+              window.scrollTo(0, 0);
+            }}
             onAuthSuccess={() => {
               setDemoMode(false);
               setOnboardingInitialStep(1);
@@ -60,6 +64,10 @@ export default function App() {
           <OnboardingFlow
             key={onboardingInitialStep}
             initialStep={onboardingInitialStep}
+            onExit={() => {
+              setScreen(onboardingInitialStep >= 2 ? 'dashboard' : 'login');
+              window.scrollTo(0, 0);
+            }}
             onComplete={() => setScreen('dashboard')}
           />
         )}

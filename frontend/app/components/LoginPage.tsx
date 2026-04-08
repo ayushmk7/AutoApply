@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useApiSession } from '../context/ApiSessionContext';
+import ScreenBackButton from './ScreenBackButton';
 
 interface LoginPageProps {
   onAuthSuccess: () => void;
   onSkipToDemo: () => void;
+  onBackToLanding: () => void;
 }
 
-export default function LoginPage({ onAuthSuccess, onSkipToDemo }: LoginPageProps) {
+export default function LoginPage({ onAuthSuccess, onSkipToDemo, onBackToLanding }: LoginPageProps) {
   const { signInEmail, signInGoogle, firebaseReady } = useApiSession();
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -60,6 +62,7 @@ export default function LoginPage({ onAuthSuccess, onSkipToDemo }: LoginPageProp
 
   return (
     <div className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center px-6">
+      <ScreenBackButton ariaLabel="Back to home" onClick={onBackToLanding} />
       <motion.div
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}

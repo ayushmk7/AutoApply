@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Check, X } from 'lucide-react';
 import { apiFetchJson } from '../lib/api';
+import ScreenBackButton from './ScreenBackButton';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -130,12 +131,24 @@ const feedPreviewItems = [
 export default function LandingPage({ onGetStarted, onSkipToDemo }: LandingPageProps) {
   const doubledFeed = [...feedPreviewItems, ...feedPreviewItems];
   const [showWaitlist, setShowWaitlist] = useState(false);
+  const [canBrowserBack, setCanBrowserBack] = useState(false);
+
+  useEffect(() => {
+    setCanBrowserBack(window.history.length > 1);
+  }, []);
 
   return (
     <div className="relative z-10 w-full min-h-screen">
       <AnimatePresence>
         {showWaitlist && <WaitlistModal onClose={() => setShowWaitlist(false)} />}
       </AnimatePresence>
+      {canBrowserBack && (
+        <ScreenBackButton
+          label="Back"
+          ariaLabel="Go to previous page"
+          onClick={() => window.history.back()}
+        />
+      )}
       <button
         type="button"
         onClick={onSkipToDemo}
