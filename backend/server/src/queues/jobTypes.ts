@@ -44,3 +44,8 @@ export interface ProcessResponseJobData extends BaseJobData {
     body: string;
   };
 }
+
+export interface InterviewFollowupJobData extends BaseJobData {
+  uid: string;
+  applicationId: string;
+}

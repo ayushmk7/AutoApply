@@ -6,6 +6,7 @@ import type {
   ApplyFromPastedUrlJobData,
   ApplyJobData,
   BaseJobData,
+  InterviewFollowupJobData,
   MatchJobData,
   ProcessResponseJobData,
 } from './jobTypes.js';
@@ -44,6 +45,10 @@ export function getApplyFromPastedUrlQueue(): Queue {
 
 export function getProcessResponseQueue(): Queue {
   return getQueue(QUEUE_NAMES.processResponse);
+}
+
+export function getInterviewFollowupQueue(): Queue {
+  return getQueue(QUEUE_NAMES.interviewFollowup);
 }
 
 /** Phase 6 — enqueue after new listings are persisted (e.g. scrape). No-op without Redis. */
@@ -107,6 +112,24 @@ export async function enqueueProcessResponseJob(
   }
   const q = getProcessResponseQueue();
   await q.add('process_response', withRequestTrace(data, requestId), {
+    removeOnComplete: config.bullmqRemoveOnComplete,
+    removeOnFail: config.bullmqRemoveOnFail,
+  });
+}
+
+export async function enqueueInterviewFollowupJob(
+  data: InterviewFollowupJobData,
+  requestId: string,
+  delayMs: number
+): Promise<void> {
+  if (!config.redisUrl) {
+    logger.warn({ requestId, uid: data.uid }, 'interview_followup_enqueue_skipped_no_redis');
+    return;
+  }
+  const q = getInterviewFollowupQueue();
+  await q.add('interview_followup', withRequestTrace(data, requestId), {
+    delay: Math.max(0, Math.round(delayMs)),
+    jobId: `interview-followup:${data.uid}:${data.applicationId}`,
     removeOnComplete: config.bullmqRemoveOnComplete,
     removeOnFail: config.bullmqRemoveOnFail,
   });

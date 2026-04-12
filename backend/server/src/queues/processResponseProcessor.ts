@@ -20,7 +20,10 @@ function parseInterviewDate(iso: string | undefined): Timestamp | undefined {
 /**
  * Phase 14.3 — classify inbound mail, update Firestore, optional Sheets + feed (`process_response` workflow).
  */
-export async function executeProcessResponseWorkflow(data: ProcessResponseJobData): Promise<void> {
+export async function executeProcessResponseWorkflow(
+  data: ProcessResponseJobData
+): Promise<{ durationMs: number }> {
+  const started = Date.now();
   const { uid, applicationId, email } = data;
   const requestId = data.requestId ?? 'process_response';
   const db = getFirestore();
@@ -88,6 +91,7 @@ export async function executeProcessResponseWorkflow(data: ProcessResponseJobDat
       requestId,
       feedCtx
     );
+    return { durationMs: Date.now() - started };
   } catch (err) {
     logger.error({ err, uid, applicationId, requestId }, 'process_response_job_failed');
     await emitUserFeed(
@@ -102,11 +106,14 @@ export async function executeProcessResponseWorkflow(data: ProcessResponseJobDat
       requestId,
       feedCtx
     );
+    return { durationMs: Date.now() - started };
   }
 }
 
-export async function processProcessResponseJob(job: Job<ProcessResponseJobData>): Promise<void> {
-  await executeProcessResponseWorkflow({
+export async function processProcessResponseJob(
+  job: Job<ProcessResponseJobData>
+): Promise<{ durationMs: number }> {
+  return executeProcessResponseWorkflow({
     ...job.data,
     requestId: job.data.requestId ?? String(job.id),
   });

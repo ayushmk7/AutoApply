@@ -33,7 +33,7 @@ const demoParsedCvSections: { title: string; body: string }[] = [
 ];
 
 export default function Settings() {
-  const { onEditParsedCv, onSignOut } = useDashboardContext();
+  const { onEditParsedCv, onSignOut, demoMode } = useDashboardContext();
   const [threshold, setThreshold] = useState(75);
   const [sheetsOn, setSheetsOn] = useState(false);
   const [sheetId] = useState('');
@@ -117,7 +117,7 @@ export default function Settings() {
               )}
             </div>
 
-            <Collapsible open={parsedCvOpen} onOpenChange={setParsedCvOpen}>
+            {demoMode && <Collapsible open={parsedCvOpen} onOpenChange={setParsedCvOpen}>
               <CollapsibleTrigger
                 type="button"
                 className="btn-micro data-[state=open]:[&_svg]:rotate-180 flex w-full items-center justify-between gap-3 rounded-[var(--radius-lg)] px-4 py-3 text-left glass-nested"
@@ -156,7 +156,7 @@ export default function Settings() {
                   </button>
                 </div>
               </CollapsibleContent>
-            </Collapsible>
+            </Collapsible>}
           </div>
         </motion.div>
 

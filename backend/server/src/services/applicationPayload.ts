@@ -35,6 +35,10 @@ export function emptyApplicationShell(
     user_notes: '',
     thank_you_sent: null as unknown,
     followup_sent: null as unknown,
+    followup_due_at: null as unknown,
+    calendar_event_id: '',
+    calendar_event_url: '',
+    calendar_sync_error: '',
     referral_available: referral.available,
     referral_contact: referral.contact,
   };

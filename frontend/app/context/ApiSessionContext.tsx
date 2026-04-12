@@ -1,5 +1,6 @@
 import {
   createContext,
+  useEffect,
   useCallback,
   useContext,
   useMemo,
@@ -14,6 +15,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  onIdTokenChanged,
   type Auth,
 } from 'firebase/auth';
 import { apiFetchJson } from '../lib/api';
@@ -62,6 +64,21 @@ export function ApiSessionProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    const fb = getOrInitFirebase();
+    if (!fb) return;
+    const unsub = onIdTokenChanged(fb.auth, async (user) => {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        persistToken(token);
+      } catch {
+        /* ignore */
+      }
+    });
+    return () => unsub();
+  }, [persistToken]);
 
   const signInDemo = useCallback(async () => {
     const res = await apiFetchJson<{ token: string }>('/api/auth/skip', { method: 'POST' });

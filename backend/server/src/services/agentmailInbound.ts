@@ -100,6 +100,13 @@ export async function matchApplicationForInboundEmail(
   }
 
   candidates.sort((a, b) => b.ms - a.ms);
+  if (candidates.length > 1) {
+    const delta = candidates[0].ms - candidates[1].ms;
+    if (delta < 5 * 60 * 1000) {
+      // Ambiguous sender-domain match: mark for future UI disambiguation if needed.
+      return null;
+    }
+  }
   return candidates[0].id;
 }
 

@@ -54,9 +54,10 @@ export default function LiveFeed() {
   const [showEmpty, setShowEmpty] = useState(false);
 
   const events = useMemo(() => {
+    if (!demoMode) return [];
     if (showEmpty) return [];
     return demoFeedEvents;
-  }, [showEmpty]);
+  }, [demoMode, showEmpty]);
 
   const showUpNext = true;
 
@@ -103,15 +104,18 @@ export default function LiveFeed() {
   return (
     <div className="mx-auto max-w-6xl">
       {!demoMode && <ApiLiveFeedPanel />}
+      {demoMode && (
       <div className="mb-8 flex items-center justify-center gap-3">
         <h1 style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>Activity</h1>
         <div className="size-2.5 animate-pulse rounded-full bg-[#00B341]" title="System active" />
       </div>
+      )}
 
       <div
         className={`grid grid-cols-1 gap-6 ${showUpNext ? 'min-[1440px]:grid-cols-3' : ''}`}
       >
         <div className={showUpNext ? 'min-[1440px]:col-span-2' : ''}>
+          {!demoMode && <div className="mb-4"><h1 style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>Activity</h1></div>}
           <div className="space-y-3">
             {events.map((event, i) => {
               const style = getEventStyle(event.status);
@@ -292,7 +296,7 @@ export default function LiveFeed() {
           )}
         </div>
 
-        <motion.div
+        {demoMode && <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
@@ -329,7 +333,7 @@ export default function LiveFeed() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </motion.div>}
       </div>
     </div>
   );

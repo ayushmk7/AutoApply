@@ -1,5 +1,6 @@
 import { FieldValue, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { google } from 'googleapis';
 import { HttpError } from '../lib/httpError.js';
 import { listingDocumentRef, userApplicationRef, userDocumentRef } from '../lib/firestorePaths.js';
 import type { AgentMailAttachment } from './agentmailSend.js';
@@ -14,6 +15,10 @@ import {
 import { toMillis } from './applicationsApi.js';
 import type { ApplicationDocument, ApplicationStatus } from '../types/application.js';
 import type { ListingDocument } from '../types/listing.js';
+import { config } from '../lib/config.js';
+import { getAuthorizedSheetsClient, updateSheetRowForApplication } from './googleSheetsSync.js';
+import { emitUserFeed } from './feedEmit.js';
+import { enqueueInterviewFollowupJob } from '../queues/producers.js';
 
 export const confirmInterviewBodySchema = z.object({
   selected_time: z.string().min(1),
@@ -53,11 +58,56 @@ function pickRecruiterEmail(listing: ListingDocument): string | null {
 const CONFIRM_FROM: ApplicationStatus[] = ['waiting', 'emailed', 'applied', 'interview_scheduled'];
 
 function parseIsoOffset(s: string): Date {
+  const hasTz = /(Z|[+-]\d{2}:\d{2})$/.test(s.trim());
+  if (!hasTz) {
+    throw new HttpError(
+      400,
+      'selected_time must include timezone offset (for example 2026-04-12T14:30:00-04:00).',
+      'VALIDATION_ERROR'
+    );
+  }
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) {
     throw new HttpError(400, 'selected_time must be a valid ISO-8601 datetime.', 'VALIDATION_ERROR');
   }
   return d;
+}
+
+async function tryCreateCalendarEvent(
+  db: Firestore,
+  uid: string,
+  selected: Date,
+  listing: ListingDocument,
+  requestId: string
+): Promise<{ created: boolean; eventId?: string; eventUrl?: string; error?: string }> {
+  try {
+    const authCtx = await getAuthorizedSheetsClient(db, uid, requestId);
+    if (!authCtx) return { created: false, error: 'calendar_not_connected' };
+    const auth = authCtx.auth;
+    const cal = google.calendar({ version: 'v3', auth });
+    const startIso = selected.toISOString();
+    const endIso = new Date(selected.getTime() + 30 * 60_000).toISOString();
+    const res = await cal.events.insert({
+      calendarId: 'primary',
+      requestBody: {
+        summary: `Interview — ${listing.company ?? 'Company'} — ${listing.role ?? 'Role'}`,
+        description: `Scheduled from AutoApply\nListing URL: ${listing.url}`,
+        start: { dateTime: startIso },
+        end: { dateTime: endIso },
+      },
+    });
+    return {
+      created: true,
+      eventId: res.data.id ?? undefined,
+      eventUrl: res.data.htmlLink ?? undefined,
+    };
+  } catch (err) {
+    const msg =
+      err && typeof err === 'object' && 'message' in err
+        ? String((err as { message: string }).message)
+        : 'calendar_create_failed';
+    return { created: false, error: msg.slice(0, 300) };
+  }
 }
 
 /**
@@ -144,18 +194,40 @@ export async function confirmInterview(
     });
   }
 
+  const cal = await tryCreateCalendarEvent(db, uid, selected, listing, requestId);
+
   await appRef.set(
     {
       status: 'interview_scheduled',
       interview_date: Timestamp.fromDate(selected),
+      calendar_event_id: cal.eventId ?? FieldValue.delete(),
+      calendar_event_url: cal.eventUrl ?? FieldValue.delete(),
+      calendar_sync_error: cal.created ? FieldValue.delete() : cal.error ?? 'calendar_not_connected',
       updated_at: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
 
+  await emitUserFeed(
+    uid,
+    {
+      action: 'interview_scheduled',
+      application_id: applicationId,
+      listing_id: listing.id,
+      detail: cal.created
+        ? 'Interview confirmed and calendar event created.'
+        : 'Interview confirmed; calendar event not created.',
+      code: cal.created ? 'INTERVIEW_CONFIRMED' : 'CALENDAR_NOT_CONNECTED',
+    },
+    requestId,
+    { company: listing.company, role: listing.role }
+  );
+
+  void updateSheetRowForApplication(db, uid, applicationId, requestId).catch(() => {});
+
   return {
     confirmation_sent: true,
-    calendar_event_created: false,
+    calendar_event_created: cal.created,
   };
 }
 
@@ -275,14 +347,40 @@ export async function sendThankYouEmail(
     throw new HttpError(502, 'Failed to send thank-you email.', 'EMAIL_SEND_FAILED', { reason: send.error });
   }
 
+  const followupDue = Timestamp.fromMillis(Date.now() + 5 * 24 * 60 * 60 * 1000);
+
   await appRef.set(
     {
       status: 'thank_you_sent',
       thank_you_sent: FieldValue.serverTimestamp(),
+      followup_due_at: followupDue,
       updated_at: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
+
+  await emitUserFeed(
+    uid,
+    {
+      action: 'emailed',
+      application_id: applicationId,
+      listing_id: listing.id,
+      detail: 'Thank-you email sent.',
+      code: 'THANK_YOU_SENT',
+    },
+    requestId,
+    { company: listing.company, role: listing.role }
+  );
+
+  void updateSheetRowForApplication(db, uid, applicationId, requestId).catch(() => {});
+
+  if (config.redisUrl) {
+    await enqueueInterviewFollowupJob(
+      { uid, applicationId, requestId },
+      requestId,
+      5 * 24 * 60 * 60 * 1000
+    ).catch(() => {});
+  }
 
   return { sent: true };
 }
@@ -355,6 +453,21 @@ export async function sendFollowUpEmail(
     },
     { merge: true }
   );
+
+  await emitUserFeed(
+    uid,
+    {
+      action: 'emailed',
+      application_id: applicationId,
+      listing_id: listing.id,
+      detail: 'Follow-up email sent.',
+      code: 'FOLLOWUP_SENT',
+    },
+    requestId,
+    { company: listing.company, role: listing.role }
+  );
+
+  void updateSheetRowForApplication(db, uid, applicationId, requestId).catch(() => {});
 
   return { sent: true };
 }

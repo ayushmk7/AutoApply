@@ -56,7 +56,8 @@ function listingSummary(listing: ListingDocument): string {
 /**
  * Phase 6.1 — score listings per user, referral match; Phase 6.2 — threshold, daily_limit (UTC), referral-first pause before auto-apply.
  */
-export async function processMatchJob(job: Job<MatchJobData>): Promise<void> {
+export async function processMatchJob(job: Job<MatchJobData>): Promise<{ durationMs: number }> {
+  const started = Date.now();
   const requestId = job.data?.requestId ?? job.id ?? 'match';
   const listingIds = job.data?.listingIds;
   const triggeredBy = job.data?.triggeredBy;
@@ -182,4 +183,5 @@ export async function processMatchJob(job: Job<MatchJobData>): Promise<void> {
     { requestId, listingCount: listingIds.length, users: usersSnap.size, triggeredBy },
     'match_job_ok'
   );
+  return { durationMs: Date.now() - started };
 }

@@ -59,4 +59,8 @@ export interface ApplicationDocument {
   user_notes?: string;
   /** Phase 15 — Google Sheet row index (1-based) when synced. */
   sheets_row?: number;
+  calendar_event_id?: string;
+  calendar_event_url?: string;
+  calendar_sync_error?: string;
+  followup_due_at?: unknown;
 }

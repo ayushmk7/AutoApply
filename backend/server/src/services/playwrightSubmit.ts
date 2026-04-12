@@ -6,6 +6,7 @@ import { logger } from '../lib/logger.js';
 import { defaultCaptchaSolver, selectAdapter } from '../playwright/atsAdapter.js';
 import { withApplicationContext } from '../playwright/manager.js';
 import type { ProfileDocument } from '../types/profile.js';
+import { incrMetricCounter, recordMetricDuration } from './workflowTelemetry.js';
 
 export interface PlaywrightSubmitOptions {
   uid: string;
@@ -26,8 +27,11 @@ export interface PlaywrightSubmitOptions {
 export async function submitApplicationViaPlaywright(
   opts: PlaywrightSubmitOptions
 ): Promise<{ ok: boolean; manualReason?: string; code?: string }> {
+  const started = Date.now();
   const ats = detectAtsTypeFromUrl(opts.listingUrl);
   if (ats === 'workday') {
+    await incrMetricCounter('playwright', 'submit', 'failed', 1);
+    await recordMetricDuration('playwright', 'submit', Date.now() - started);
     return { ok: false, manualReason: 'Workday applications require manual submission.', code: 'MANUAL_COMPLETION_REQUIRED' };
   }
 
@@ -64,6 +68,8 @@ export async function submitApplicationViaPlaywright(
           Buffer.from(shot),
           'image/jpeg'
         );
+        await incrMetricCounter('playwright', 'submit', 'failed', 1);
+        await recordMetricDuration('playwright', 'submit', Date.now() - started);
         return {
           ok: false,
           manualReason: 'CAPTCHA could not be solved or balance timed out.',
@@ -98,6 +104,8 @@ export async function submitApplicationViaPlaywright(
       );
 
       if (!submit.success) {
+        await incrMetricCounter('playwright', 'submit', 'failed', 1);
+        await recordMetricDuration('playwright', 'submit', Date.now() - started);
         return {
           ok: false,
           manualReason: submit.error || 'Submit step did not complete.',
@@ -105,10 +113,14 @@ export async function submitApplicationViaPlaywright(
         };
       }
 
+      await incrMetricCounter('playwright', 'submit', 'success', 1);
+      await recordMetricDuration('playwright', 'submit', Date.now() - started);
       return { ok: true };
     }, { isDemo: opts.isDemo, requestId: opts.requestId });
   } catch (err) {
     logger.error({ err, requestId: opts.requestId }, 'playwright_submit_failed');
+    await incrMetricCounter('playwright', 'submit', 'failed', 1);
+    await recordMetricDuration('playwright', 'submit', Date.now() - started);
     return {
       ok: false,
       manualReason: String(err),

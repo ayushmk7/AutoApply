@@ -59,7 +59,8 @@ async function mergeListingFromExtracted(
 
 export async function processApplyFromPastedUrlJob(
   job: Job<ApplyFromPastedUrlJobData>
-): Promise<void> {
+): Promise<{ durationMs: number }> {
+  const started = Date.now();
   const data = job.data;
   const db = getFirestore();
   const requestId = data.requestId ?? String(job.id);
@@ -113,7 +114,7 @@ export async function processApplyFromPastedUrlJob(
             requestId,
             await listingFeedCtx(db, data.listingId)
           );
-          return;
+          return { durationMs: Date.now() - started };
         }
         throw err;
       }
@@ -148,7 +149,7 @@ export async function processApplyFromPastedUrlJob(
             requestId,
             await listingFeedCtx(db, data.listingId)
           );
-          return;
+          return { durationMs: Date.now() - started };
         }
         const extracted = await extractListingFromPlainText(jdText, normalizedUrl, requestId);
         await mergeListingFromExtracted(db, data.listingId, extracted, 'manual_paste', normalizedUrl);
@@ -188,7 +189,7 @@ export async function processApplyFromPastedUrlJob(
             requestId,
             await listingFeedCtx(db, data.listingId)
           );
-          return;
+          return { durationMs: Date.now() - started };
         }
         await mergeListingFromExtracted(
           db,
@@ -222,7 +223,7 @@ export async function processApplyFromPastedUrlJob(
           requestId,
           await listingFeedCtx(db, data.listingId)
         );
-        return;
+        return { durationMs: Date.now() - started };
       }
     } else if (jdText) {
       const extracted = await extractListingFromPlainText(
@@ -263,7 +264,7 @@ export async function processApplyFromPastedUrlJob(
         requestId,
         await listingFeedCtx(db, data.listingId)
       );
-      return;
+      return { durationMs: Date.now() - started };
     }
 
     await appRef.set({ status: 'queued', updated_at: FieldValue.serverTimestamp() }, { merge: true });
@@ -276,6 +277,7 @@ export async function processApplyFromPastedUrlJob(
       requestId,
       forceManualSubmit: data.force_manual_submit,
     });
+    return { durationMs: Date.now() - started };
   } catch (err) {
     logger.error({ err, requestId, jobId: job.id }, 'apply_from_url_job_failed');
     await appRef.set(
@@ -298,5 +300,6 @@ export async function processApplyFromPastedUrlJob(
       requestId,
       await listingFeedCtx(db, data.listingId)
     );
+    return { durationMs: Date.now() - started };
   }
 }

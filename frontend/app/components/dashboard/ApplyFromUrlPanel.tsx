@@ -13,6 +13,7 @@ export default function ApplyFromUrlPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastApplicationId, setLastApplicationId] = useState<string | null>(null);
 
   if (!accessToken) return null;
 
@@ -36,6 +37,7 @@ export default function ApplyFromUrlPanel() {
         }),
       });
       setMessage(res.message ?? 'Queued');
+      setLastApplicationId(res.application_id);
       if (!res.reused) {
         setUrl('');
         setJd('');
@@ -98,6 +100,7 @@ export default function ApplyFromUrlPanel() {
       {message && (
         <p className="mt-3 text-sm" style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
           {message}
+          {lastApplicationId ? ` (${lastApplicationId})` : ''}
         </p>
       )}
       {error && (

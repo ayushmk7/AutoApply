@@ -31,7 +31,11 @@ export async function apiFetchJson<T>(
     headers.set('Authorization', `Bearer ${init.accessToken}`);
   }
   const { accessToken: _a, ...rest } = init;
-  const res = await fetch(apiUrl(path), { ...rest, headers });
+  let res = await fetch(apiUrl(path), { ...rest, headers });
+  if (res.status === 401 && init.accessToken) {
+    // Caller can rehydrate token from session on subsequent calls.
+    res = await fetch(apiUrl(path), { ...rest, headers });
+  }
   const text = await res.text();
   let body: unknown = undefined;
   if (text) {

@@ -85,7 +85,10 @@ export async function createSheetsAuthorizationUrl(uid: string): Promise<string>
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: true,
-    scope: ['https://www.googleapis.com/auth/spreadsheets'],
+    scope: [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/calendar.events',
+    ],
     state,
   });
 }

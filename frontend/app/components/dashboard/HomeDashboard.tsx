@@ -33,12 +33,12 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
   const { openAts, openInterview } = useModals();
   const { demoMode } = useDashboardContext();
 
-  const recentEvents = useMemo(() => demoFeedEvents.slice(0, 4), []);
+  const recentEvents = useMemo(() => (demoMode ? demoFeedEvents.slice(0, 4) : []), [demoMode]);
   const attentionEvents = useMemo(
-    () => demoFeedEvents.filter((e) => attentionStatuses.includes(e.status)),
-    [],
+    () => (demoMode ? demoFeedEvents.filter((e) => attentionStatuses.includes(e.status)) : []),
+    [demoMode],
   );
-  const upNextPreview = useMemo(() => demoUpNextJobs.slice(0, 3), []);
+  const upNextPreview = useMemo(() => (demoMode ? demoUpNextJobs.slice(0, 3) : []), [demoMode]);
 
   const pipelineStats = useMemo(() => {
     if (!demoMode) {

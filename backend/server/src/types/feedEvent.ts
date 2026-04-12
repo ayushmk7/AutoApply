@@ -18,6 +18,7 @@ export type FeedPipelineAction =
   | 'submitted'
   | 'failed'
   | 'emailed'
+  | 'interview_scheduled'
   | 'response_received'
   | 'ghost_detected'
   | 'referral_found'

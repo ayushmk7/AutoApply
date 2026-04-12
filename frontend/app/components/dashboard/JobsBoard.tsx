@@ -18,7 +18,7 @@ export default function JobsBoard() {
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   const [forceEmpty, setForceEmpty] = useState(false);
 
-  const jobs = forceEmpty ? [] : demoJobs;
+  const jobs = demoMode ? (forceEmpty ? [] : demoJobs) : [];
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
@@ -49,7 +49,7 @@ export default function JobsBoard() {
     return '#FF3B30';
   };
 
-  if (jobs.length === 0) {
+  if (demoMode && jobs.length === 0) {
     return (
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-6 text-center" style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>
@@ -82,6 +82,7 @@ export default function JobsBoard() {
           <ApiJobsList />
         </>
       )}
+      {!demoMode ? null : (
       <div className="mb-8">
         <div className="mb-6 text-center">
           <h1 style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>Jobs Board</h1>
@@ -192,14 +193,15 @@ export default function JobsBoard() {
           </div>
         </div>
       </div>
+      )}
 
-      {filteredJobs.length === 0 ? (
+      {demoMode && filteredJobs.length === 0 ? (
         <div className="glass-panel p-10 text-center">
           <p className="mono text-sm" style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
             No jobs match your filters. Adjust filters to see more roles.
           </p>
         </div>
-      ) : (
+      ) : demoMode ? (
         <div className="columns-1 gap-6 space-y-6 md:columns-2 xl:columns-3">
           {filteredJobs.map((job, i) => (
             <JobCard
@@ -220,7 +222,7 @@ export default function JobsBoard() {
             />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -13,7 +13,7 @@ export default function ApplicationsTracker() {
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
   const [forceEmpty, setForceEmpty] = useState(false);
 
-  const applications = forceEmpty ? [] : demoApplications;
+  const applications = demoMode ? (forceEmpty ? [] : demoApplications) : [];
 
   const filteredApps = useMemo(() => {
     return applications.filter((app) => {
@@ -76,7 +76,7 @@ export default function ApplicationsTracker() {
     { id: 'manual', label: 'Manual Needed', count: applications.filter((a) => a.status === 'manual_needed').length },
   ];
 
-  if (applications.length === 0) {
+  if (demoMode && applications.length === 0) {
     return (
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-6 text-center" style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>
@@ -119,7 +119,7 @@ export default function ApplicationsTracker() {
         )}
       </div>
 
-      <div className="glass-panel relative mb-6 flex flex-wrap gap-2 overflow-x-auto p-2">
+      {demoMode && <div className="glass-panel relative mb-6 flex flex-wrap gap-2 overflow-x-auto p-2">
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -150,9 +150,9 @@ export default function ApplicationsTracker() {
             </button>
           );
         })}
-      </div>
+      </div>}
 
-      <div className="glass-panel overflow-hidden">
+      {demoMode && <div className="glass-panel overflow-hidden">
         {filteredApps.length === 0 ? (
           <div className="p-10 text-center">
             <p className="mono text-sm" style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
@@ -263,7 +263,12 @@ export default function ApplicationsTracker() {
         </div>
           </>
         )}
-      </div>
+      </div>}
+      {!demoMode && (
+        <div className="glass-panel p-6 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+          Applications API panel integration is active through jobs/feed actions; dedicated tracker API table is next.
+        </div>
+      )}
     </div>
   );
 }

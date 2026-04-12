@@ -84,6 +84,19 @@ webhooksRouter.post('/agentmail', agentmailLimiter, async (req, res, next) => {
       },
     };
 
+    await db.collection('ops_webhook_audit').doc(dedupeKey).set(
+      {
+        source: 'agentmail',
+        uid,
+        dedupeKey,
+        from_domain: parsed.from.includes('@') ? parsed.from.split('@').pop() : '',
+        subject_preview: parsed.subject.slice(0, 120),
+        body_preview: parsed.body.slice(0, 240),
+        received_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
     const requestId = req.requestId ?? 'webhook-agentmail';
 
     if (config.redisUrl) {

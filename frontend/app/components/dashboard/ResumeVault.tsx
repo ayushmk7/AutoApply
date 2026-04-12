@@ -21,7 +21,7 @@ export default function ResumeVault() {
   const [compareId, setCompareId] = useState<string | null>(null);
   const [forceEmpty, setForceEmpty] = useState(false);
 
-  const source = forceEmpty ? [] : demoResumes;
+  const source = demoMode ? (forceEmpty ? [] : demoResumes) : [];
 
   const filtered = useMemo(() => {
     return source.filter((r) => {
@@ -41,7 +41,7 @@ export default function ResumeVault() {
     return '#FF3B30';
   };
 
-  if (filtered.length === 0) {
+  if (demoMode && filtered.length === 0) {
     return (
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-6 text-center" style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>
@@ -67,7 +67,7 @@ export default function ResumeVault() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="mb-8">
+      {demoMode && <div className="mb-8">
         <div className="mb-6 text-center">
           <h1 style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>Resume Vault</h1>
           {demoMode && (
@@ -100,9 +100,9 @@ export default function ResumeVault() {
             <option>Sort by Company</option>
           </select>
         </div>
-      </div>
+      </div>}
 
-      <div className="glass-panel mb-8 p-6">
+      {demoMode && <div className="glass-panel mb-8 p-6">
         <p className="mb-3" style={{ fontWeight: 800 }}>
           ATS score range
         </p>
@@ -134,9 +134,9 @@ export default function ResumeVault() {
             />
           </div>
         </div>
-      </div>
+      </div>}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {demoMode && <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filtered.map((resume, i) => (
           <motion.div
             key={resume.id}
@@ -242,9 +242,14 @@ export default function ResumeVault() {
             </div>
           </motion.div>
         ))}
-      </div>
+      </div>}
+      {!demoMode && (
+        <div className="glass-panel p-6 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+          Resume vault is waiting on dedicated API list wiring; artifact URLs are available from application detail endpoints.
+        </div>
+      )}
 
-      <Dialog open={!!pdfResume} onOpenChange={(o) => !o && setPdfResumeId(null)}>
+      {demoMode && <Dialog open={!!pdfResume} onOpenChange={(o) => !o && setPdfResumeId(null)}>
         <DialogContent className="glass-panel max-h-[90vh] max-w-2xl overflow-y-auto border-0 sm:max-w-2xl [&]:rounded-[var(--radius-2xl)] [&]:bg-[var(--glass-bg)] [&]:p-8">
           <DialogHeader>
             <DialogTitle style={{ fontFamily: 'var(--font-display)', fontWeight: 900 }}>
@@ -260,7 +265,7 @@ export default function ResumeVault() {
             </p>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
     </div>
   );
 }

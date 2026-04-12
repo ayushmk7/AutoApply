@@ -44,6 +44,11 @@ function broadcastToUid(uid: string, raw: string): void {
  */
 export function attachLiveFeedServer(wss: WebSocketServer): void {
   wss.on('connection', async (socket, req) => {
+    const origin = req.headers.origin?.trim();
+    if (origin && config.frontendUrl && origin !== config.frontendUrl) {
+      socket.close(4403, 'forbidden_origin');
+      return;
+    }
     const handshakeId = randomUUID();
     const parsed = parse(req.url ?? '', true);
     const tokenRaw = parsed.query?.token;

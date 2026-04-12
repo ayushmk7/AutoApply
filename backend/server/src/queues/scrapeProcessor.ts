@@ -46,7 +46,8 @@ async function saveRepoState(db: Firestore, r: RepoIdentity, sha: string): Promi
 /**
  * Phase 5.3 — fetch → parse → diff → store; Phase 5.4 ghost + link health; Phase 5.5 Apollo.
  */
-export async function processScrapeJob(job: Job<ScrapeJobData>): Promise<void> {
+export async function processScrapeJob(job: Job<ScrapeJobData>): Promise<{ durationMs: number }> {
+  const started = Date.now();
   const requestId = job.data?.requestId ?? job.id ?? 'scrape';
   const triggeredBy = job.data?.triggeredBy;
   if (triggeredBy !== 'cron' && triggeredBy !== 'manual') {
@@ -61,7 +62,7 @@ export async function processScrapeJob(job: Job<ScrapeJobData>): Promise<void> {
   const repos = parseDefaultGithubRepos(config.githubScrapeReposRaw);
   if (repos.length === 0) {
     logger.warn({ requestId }, 'scrape_no_repos_configured');
-    return;
+    return { durationMs: Date.now() - started };
   }
 
   let newListings = 0;
@@ -161,4 +162,5 @@ export async function processScrapeJob(job: Job<ScrapeJobData>): Promise<void> {
 
   await refreshListingStatsAggregate(db, requestId);
   await enqueueMatchForNewListings(newListingIds, 'scrape', requestId);
+  return { durationMs: Date.now() - started };
 }

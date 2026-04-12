@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiSession } from '../../context/ApiSessionContext';
-import { apiUrl } from '../../lib/api';
+import { apiFetchJson, apiUrl } from '../../lib/api';
 
 type FeedWire = {
   type: 'application_event';
@@ -28,11 +28,9 @@ export default function ApiLiveFeedPanel() {
 
   const poll = useCallback(async () => {
     if (!accessToken) return;
-    const headers = new Headers();
-    headers.set('Authorization', `Bearer ${accessToken}`);
-    const res = await fetch(apiUrl('/api/feed?limit=30'), { headers });
-    if (!res.ok) return;
-    const body = (await res.json()) as { events?: FeedWire[] };
+    const body = await apiFetchJson<{ events?: FeedWire[] }>('/api/feed?limit=30', {
+      accessToken,
+    }).catch(() => ({ events: [] }));
     setEvents(body.events ?? []);
   }, [accessToken]);
 

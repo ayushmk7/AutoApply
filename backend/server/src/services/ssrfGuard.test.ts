@@ -17,4 +17,18 @@ describe('assertUrlSafeForFetch', () => {
       (e: unknown) => e instanceof HttpError && e.code === 'UNSUPPORTED_SCHEME'
     );
   });
+
+  it('rejects metadata ip literal', async () => {
+    await assert.rejects(
+      () => assertUrlSafeForFetch('http://169.254.169.254/latest/meta-data'),
+      (e: unknown) => e instanceof HttpError && e.code === 'SSRF_BLOCKED'
+    );
+  });
+
+  it('rejects localhost hostname', async () => {
+    await assert.rejects(
+      () => assertUrlSafeForFetch('http://localhost:8080'),
+      (e: unknown) => e instanceof HttpError && e.code === 'SSRF_BLOCKED'
+    );
+  });
 });
