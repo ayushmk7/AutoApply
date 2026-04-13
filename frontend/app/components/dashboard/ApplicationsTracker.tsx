@@ -1,19 +1,36 @@
 import { motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useModals } from '../../context/ModalContext';
 import { demoApplications, type DemoApplication } from '../../data/demoData';
+import { useApiSession } from '../../context/ApiSessionContext';
+import { ApiError, apiFetchJson } from '../../lib/api';
+import { describeWhen, fetchApplicationsWithListing, type ApiApplicationRow } from '../../lib/dashboardApi';
 import { useDashboardContext } from '../Dashboard';
 
 type TabId = 'all' | 'applied' | 'waiting' | 'interviews' | 'rejected' | 'offers' | 'manual';
 
 export default function ApplicationsTracker() {
   const { demoMode } = useDashboardContext();
+  const { accessToken } = useApiSession();
   const { openAtsFromApplication, openInterview } = useModals();
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
   const [forceEmpty, setForceEmpty] = useState(false);
+  const [apiRows, setApiRows] = useState<ApiApplicationRow[]>([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const applications = demoMode ? (forceEmpty ? [] : demoApplications) : [];
+
+  useEffect(() => {
+    if (demoMode || !accessToken) return;
+    setApiLoading(true);
+    setApiError(null);
+    void fetchApplicationsWithListing(accessToken)
+      .then((rows) => setApiRows(rows))
+      .catch((err) => setApiError(err instanceof ApiError ? err.message : String(err)))
+      .finally(() => setApiLoading(false));
+  }, [demoMode, accessToken]);
 
   const filteredApps = useMemo(() => {
     return applications.filter((app) => {
@@ -265,12 +282,103 @@ export default function ApplicationsTracker() {
         )}
       </div>}
       {!demoMode && (
-        <div className="glass-panel p-6 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
-          Applications API panel integration is active through jobs/feed actions; dedicated tracker API table is next.
+        <div className="glass-panel overflow-hidden">
+          <div className="flex items-center justify-between border-b border-white/40 p-4">
+            <h2 style={{ fontWeight: 800 }}>API Applications</h2>
+            <span className="mono text-xs" style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>
+              {apiRows.length} rows
+            </span>
+          </div>
+          {apiLoading ? (
+            <div className="p-6 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+              Loading applications...
+            </div>
+          ) : apiError ? (
+            <div className="p-6 text-sm" style={{ fontWeight: 400, color: '#FF3B30' }}>
+              {apiError}
+            </div>
+          ) : apiRows.length === 0 ? (
+            <div className="p-6 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+              No applications yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-white/40">
+                    {['Company', 'Role', 'Status', 'Fit', 'ATS', 'Updated', 'Actions'].map((h) => (
+                      <th key={h} className="p-3 text-left text-sm" style={{ fontWeight: 800 }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {apiRows.map((row) => (
+                    <tr key={row.application.id} className="border-b border-white/20">
+                      <td className="p-3" style={{ fontWeight: 800 }}>
+                        {row.listing?.company ?? '—'}
+                      </td>
+                      <td className="p-3 text-sm" style={{ fontWeight: 200 }}>
+                        {row.listing?.role ?? '—'}
+                      </td>
+                      <td className="p-3">
+                        <span className="rounded-full bg-white/20 px-2 py-1 text-xs" style={{ fontWeight: 800 }}>
+                          {row.application.status}
+                        </span>
+                      </td>
+                      <td className="mono p-3 text-sm" style={{ fontWeight: 400 }}>
+                        {row.application.fit_score ?? '—'}
+                      </td>
+                      <td className="mono p-3 text-sm" style={{ fontWeight: 400 }}>
+                        {row.application.ats_score ?? '—'}
+                      </td>
+                      <td className="p-3 text-sm" style={{ fontWeight: 200 }}>
+                        {describeWhen(row.application.updated_at)}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="btn-micro rounded-[var(--radius-md)] px-2 py-1 text-xs glass-nested"
+                            onClick={() => void openArtifact(accessToken, row.application.id, 'resume')}
+                          >
+                            Resume
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-micro rounded-[var(--radius-md)] px-2 py-1 text-xs glass-nested"
+                            onClick={() => void openArtifact(accessToken, row.application.id, 'cover-letter')}
+                          >
+                            Cover
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+async function openArtifact(
+  accessToken: string | null,
+  applicationId: string,
+  kind: 'resume' | 'cover-letter'
+): Promise<void> {
+  if (!accessToken) return;
+  const res = await apiFetchJson<{ url: string }>(
+    `/api/applications/${encodeURIComponent(applicationId)}/${kind}`,
+    { accessToken }
+  );
+  if (res.url) {
+    window.open(res.url, '_blank', 'noopener,noreferrer');
+  }
 }
 
 function ApplicationRowDesktop({

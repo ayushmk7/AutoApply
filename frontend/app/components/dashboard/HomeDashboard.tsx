@@ -1,14 +1,17 @@
 import { motion } from 'motion/react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, FileText, List, Settings } from 'lucide-react';
 import { useModals } from '../../context/ModalContext';
 import { demoApplications, demoFeedEvents, demoUpNextJobs, type DemoFeedEvent } from '../../data/demoData';
 import { useDashboardContext } from '../Dashboard';
+import { useApiSession } from '../../context/ApiSessionContext';
+import { ApiError, apiFetchJson } from '../../lib/api';
+import { fetchApplicationsWithListing, fetchFeed, type ApiApplicationRow, type ApiFeedEvent } from '../../lib/dashboardApi';
 import type { DashboardPage } from './MobileNav';
 
 const attentionStatuses: DemoFeedEvent['status'][] = ['captcha', 'interview', 'failed'];
 
-function eventAccent(status: DemoFeedEvent['status']) {
+function eventAccent(status: string) {
   switch (status) {
     case 'interview':
       return '#00B341';
@@ -32,6 +35,11 @@ function tileMotion(delay: number) {
 export default function HomeDashboard({ onNavigate }: { onNavigate: (page: DashboardPage) => void }) {
   const { openAts, openInterview } = useModals();
   const { demoMode } = useDashboardContext();
+  const { accessToken } = useApiSession();
+  const [apiApps, setApiApps] = useState<ApiApplicationRow[]>([]);
+  const [apiFeed, setApiFeed] = useState<ApiFeedEvent[]>([]);
+  const [apiJobs, setApiJobs] = useState<Array<{ listing: { company?: string; role?: string }; fit_score?: number | null }>>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const recentEvents = useMemo(() => (demoMode ? demoFeedEvents.slice(0, 4) : []), [demoMode]);
   const attentionEvents = useMemo(
@@ -40,13 +48,36 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
   );
   const upNextPreview = useMemo(() => (demoMode ? demoUpNextJobs.slice(0, 3) : []), [demoMode]);
 
+  useEffect(() => {
+    if (demoMode || !accessToken) return;
+    setApiError(null);
+    void Promise.all([
+      fetchApplicationsWithListing(accessToken),
+      fetchFeed(accessToken),
+      apiFetchJson<{ jobs?: Array<{ listing: { company?: string; role?: string }; fit_score?: number | null }> }>(
+        '/api/jobs?limit=8',
+        { accessToken }
+      ),
+    ])
+      .then(([apps, feed, jobs]) => {
+        setApiApps(apps);
+        setApiFeed(feed);
+        setApiJobs(jobs.jobs ?? []);
+      })
+      .catch((err) => setApiError(err instanceof ApiError ? err.message : String(err)));
+  }, [demoMode, accessToken]);
+
   const pipelineStats = useMemo(() => {
     if (!demoMode) {
+      const applied = apiApps.filter((a) => ['applied', 'waiting', 'interview'].includes(a.uiStatus)).length;
+      const waiting = apiApps.filter((a) => a.uiStatus === 'waiting' || a.application.status === 'queued' || a.application.status === 'applying').length;
+      const interviews = apiApps.filter((a) => a.uiStatus === 'interview').length;
+      const offers = apiApps.filter((a) => a.uiStatus === 'offer').length;
       return [
-        { label: 'Applied', value: '0', color: '#0066FF' },
-        { label: 'Waiting', value: '0', color: '#F5A623' },
-        { label: 'Interviews', value: '0', color: '#00B341' },
-        { label: 'Offers', value: '0', color: '#00B341' },
+        { label: 'Applied', value: String(applied), color: '#0066FF' },
+        { label: 'Waiting', value: String(waiting), color: '#F5A623' },
+        { label: 'Interviews', value: String(interviews), color: '#00B341' },
+        { label: 'Offers', value: String(offers), color: '#00B341' },
       ];
     }
     const applied = demoApplications.filter((a) => a.status !== 'manual_needed').length;
@@ -59,7 +90,15 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
       { label: 'Interviews', value: String(interviews), color: '#00B341' },
       { label: 'Offers', value: String(offers), color: '#00B341' },
     ];
-  }, [demoMode]);
+  }, [demoMode, apiApps]);
+
+  const apiAttention = useMemo(
+    () =>
+      apiFeed.filter((e) =>
+        ['failed', 'manual_needed', 'interview_scheduled', 'response_received'].includes(e.data.action)
+      ),
+    [apiFeed]
+  );
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -71,6 +110,11 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {!demoMode && apiError && (
+          <motion.section {...tileMotion(0)} className="glass-panel p-4 lg:col-span-12">
+            <p style={{ fontWeight: 400, color: '#FF3B30' }}>{apiError}</p>
+          </motion.section>
+        )}
         <motion.section
           {...tileMotion(0)}
           className="glass-panel p-6 lg:col-span-8"
@@ -105,14 +149,32 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
           <h2 className="mb-4 text-sm" style={{ fontWeight: 800, fontFamily: 'var(--font-display)' }}>
             Needs attention
           </h2>
-          {attentionEvents.length === 0 ? (
+          {(demoMode ? attentionEvents.length : apiAttention.length) === 0 ? (
             <p className="flex flex-1 items-center text-sm text-[var(--text-secondary)]" style={{ fontWeight: 200 }}>
               Nothing needs your attention right now.
             </p>
           ) : (
             <ul className="flex flex-1 flex-col gap-3">
-              {attentionEvents.map((event) => {
-                const accent = eventAccent(event.status);
+              {(demoMode
+                ? attentionEvents.map((event) => ({
+                    id: event.id,
+                    company: event.company,
+                    role: event.role,
+                    action: event.action,
+                    timestamp: event.timestamp,
+                    status: event.status,
+                  }))
+                : apiAttention.map((event, idx) => ({
+                    id: event.id ?? `${idx}`,
+                    company: event.data.company,
+                    role: event.data.role,
+                    action: event.data.detail,
+                    timestamp: new Date(event.data.timestamp).toLocaleTimeString(),
+                    status: event.data.action === 'failed' ? 'failed' : event.data.action === 'interview_scheduled' ? 'interview' : 'captcha',
+                  }))
+              ).map((event) => {
+                const attentionStatus = event.status as string;
+                const accent = eventAccent(attentionStatus);
                 return (
                   <li
                     key={event.id}
@@ -131,7 +193,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
                       {event.action}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {event.status === 'interview' && (
+                      {attentionStatus === 'interview' && (
                         <button
                           type="button"
                           className="btn-micro rounded-[var(--radius-md)] px-3 py-1.5 text-xs text-white"
@@ -141,7 +203,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
                           Respond
                         </button>
                       )}
-                      {event.status === 'failed' && (
+                      {attentionStatus === 'failed' && (
                         <button
                           type="button"
                           className="btn-micro rounded-[var(--radius-md)] px-3 py-1.5 text-xs text-white"
@@ -150,7 +212,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
                           Complete manually
                         </button>
                       )}
-                      {event.status === 'captcha' && (
+                      {attentionStatus === 'captcha' && (
                         <button
                           type="button"
                           className="btn-micro rounded-[var(--radius-md)] px-3 py-1.5 text-xs glass-nested"
@@ -186,7 +248,11 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
             </button>
           </div>
           <ul className="space-y-3">
-            {upNextPreview.map((job, i) => (
+            {(demoMode ? upNextPreview : apiJobs.slice(0, 3).map((j) => ({
+              company: j.listing.company ?? '—',
+              role: j.listing.role ?? '—',
+              score: Number(j.fit_score ?? 0),
+            }))).map((job, i) => (
               <li key={`${job.company}-${i}`} className="flex items-center justify-between gap-3 rounded-[var(--radius-lg)] glass-nested px-4 py-3">
                 <div className="min-w-0">
                   <div style={{ fontWeight: 800 }} className="truncate text-sm">
@@ -226,7 +292,25 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (page: Dashb
             </button>
           </div>
           <ul className="space-y-2">
-            {recentEvents.map((event) => (
+            {(demoMode
+              ? recentEvents
+              : apiFeed.slice(0, 4).map((event, idx) => ({
+                  id: event.id ?? `${idx}`,
+                  company: event.data.company,
+                  role: event.data.role,
+                  action: event.data.detail,
+                  score: Number(event.data.metadata?.ats_score ?? NaN),
+                  timestamp: new Date(event.data.timestamp).toLocaleTimeString(),
+                  status:
+                    event.data.action === 'failed'
+                      ? 'failed'
+                      : event.data.action === 'interview_scheduled'
+                        ? 'interview'
+                        : event.data.action === 'referral_found'
+                          ? 'referral'
+                          : 'submitted',
+                }))
+            ).map((event) => (
               <li
                 key={event.id}
                 className="flex items-start gap-3 rounded-[var(--radius-md)] border border-transparent px-2 py-2 transition-colors hover:bg-[var(--glass-nested)]"

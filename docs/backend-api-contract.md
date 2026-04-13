@@ -22,6 +22,8 @@ This complements `docs/openapi.yaml` with runtime and workflow semantics.
 - `UNSUPPORTED_SCHEME`
 - `MANUAL_COMPLETION_REQUIRED`
 - `SHEETS_SYNC_FAILED`
+- `SHEETS_CONFLICT`
+- `WEBHOOK_UNAUTHORIZED`
 
 ## Feed Events
 
@@ -41,6 +43,33 @@ Wire type:
   }
 }
 ```
+
+Reconnect contract:
+- WS auth failures close the socket with `4401` (`unauthorized`).
+- Client reconnects with a fresh bearer token and SHOULD call `GET /api/feed?since=<lastTimestamp>` to recover missed events.
+- Server emits heartbeat frames (`{ "type": "heartbeat", ... }`) and responds to client `ping` with `pong`.
+
+## Interview Follow-Up Lifecycle
+
+- Follow-up state fields on applications:
+  - `followup_state`: `none | scheduled | cancelled | sent | skipped_response_received | skipped_state_conflict`
+  - `followup_due_at`
+  - `followup_cancel_reason`
+  - `followup_audit[]`
+- Any inbound recruiter response (`process_response`) cancels scheduled follow-up jobs.
+
+## Sheets Bidirectional Conflict Semantics
+
+- Sheet row columns now include:
+  - `Application ID`
+  - `Row Version`
+  - `Last Writer`
+  - `Conflict State`
+  - `Conflict Reason`
+- Sync policy:
+  - Firestore writes increment `sheets_row_version`.
+  - Sheet edits are only applied when `row_version > firestore_version`.
+  - Stale sheet writes mark application conflict state (`sheet_version_stale`).
 
 ## Metrics Fields
 

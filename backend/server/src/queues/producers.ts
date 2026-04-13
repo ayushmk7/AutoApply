@@ -3,6 +3,7 @@ import { config } from '../lib/config.js';
 import { logger } from '../lib/logger.js';
 import { getBullConnection } from './connection.js';
 import type {
+  AgentmailProvisionRetryJobData,
   ApplyFromPastedUrlJobData,
   ApplyJobData,
   BaseJobData,
@@ -49,6 +50,10 @@ export function getProcessResponseQueue(): Queue {
 
 export function getInterviewFollowupQueue(): Queue {
   return getQueue(QUEUE_NAMES.interviewFollowup);
+}
+
+export function getAgentmailProvisionRetryQueue(): Queue {
+  return getQueue(QUEUE_NAMES.agentmailProvisionRetry);
 }
 
 /** Phase 6 — enqueue after new listings are persisted (e.g. scrape). No-op without Redis. */
@@ -130,6 +135,24 @@ export async function enqueueInterviewFollowupJob(
   await q.add('interview_followup', withRequestTrace(data, requestId), {
     delay: Math.max(0, Math.round(delayMs)),
     jobId: `interview-followup:${data.uid}:${data.applicationId}`,
+    removeOnComplete: config.bullmqRemoveOnComplete,
+    removeOnFail: config.bullmqRemoveOnFail,
+  });
+}
+
+export async function enqueueAgentmailProvisionRetryJob(
+  data: AgentmailProvisionRetryJobData,
+  requestId: string,
+  delayMs: number
+): Promise<void> {
+  if (!config.redisUrl) {
+    logger.warn({ requestId, uid: data.uid }, 'agentmail_provision_retry_enqueue_skipped_no_redis');
+    return;
+  }
+  const q = getAgentmailProvisionRetryQueue();
+  await q.add('agentmail_provision_retry', withRequestTrace(data, requestId), {
+    delay: Math.max(0, Math.round(delayMs)),
+    jobId: `agentmail-provision-retry:${data.uid}`,
     removeOnComplete: config.bullmqRemoveOnComplete,
     removeOnFail: config.bullmqRemoveOnFail,
   });

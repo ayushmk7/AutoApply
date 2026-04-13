@@ -49,3 +49,9 @@ export interface InterviewFollowupJobData extends BaseJobData {
   uid: string;
   applicationId: string;
 }
+
+export interface AgentmailProvisionRetryJobData extends BaseJobData {
+  uid: string;
+  attempt: number;
+  reason: string;
+}

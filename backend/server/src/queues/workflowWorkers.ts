@@ -5,6 +5,7 @@ import { QUEUE_NAMES } from './names.js';
 import { incrMetricCounter, recordMetricDuration } from '../services/workflowTelemetry.js';
 import { processApplyJob } from './applyProcessor.js';
 import { processApplyFromPastedUrlJob } from './applyFromUrlProcessor.js';
+import { processAgentmailProvisionRetryJob } from './agentmailProvisionRetryProcessor.js';
 import { processInterviewFollowupJob } from './interviewFollowupProcessor.js';
 import { processMatchJob } from './matchProcessor.js';
 import { processProcessResponseJob } from './processResponseProcessor.js';
@@ -17,6 +18,7 @@ export const WORKFLOW_QUEUE_LIST = [
   QUEUE_NAMES.applyFromPastedUrl,
   QUEUE_NAMES.processResponse,
   QUEUE_NAMES.interviewFollowup,
+  QUEUE_NAMES.agentmailProvisionRetry,
 ] as const;
 
 /**
@@ -193,6 +195,34 @@ export function registerWorkflowWorkers(): Worker[] {
     void recordMetricDuration('queue', 'interview_followup', ms);
   });
 
+  const agentmailProvisionRetryWorker = new Worker(
+    QUEUE_NAMES.agentmailProvisionRetry,
+    async (job) => {
+      return processAgentmailProvisionRetryJob(job);
+    },
+    {
+      connection,
+      concurrency: 2,
+      lockDuration: 600_000,
+      stalledInterval: 120_000,
+    }
+  );
+
+  agentmailProvisionRetryWorker.on('failed', (job, err) => {
+    logger.error(
+      { jobId: job?.id, err, requestId: job?.data?.requestId },
+      'agentmail_provision_retry_job_failed'
+    );
+    void incrMetricCounter('queue', 'agentmail_provision_retry', 'failed', 1);
+  });
+  agentmailProvisionRetryWorker.on('completed', (_job, result) => {
+    const ms = typeof result === 'object' && result && 'durationMs' in (result as Record<string, unknown>)
+      ? Number((result as { durationMs?: number }).durationMs ?? 0)
+      : 0;
+    void incrMetricCounter('queue', 'agentmail_provision_retry', 'completed', 1);
+    void recordMetricDuration('queue', 'agentmail_provision_retry', ms);
+  });
+
   return [
     scrapeWorker,
     matchWorker,
@@ -200,5 +230,6 @@ export function registerWorkflowWorkers(): Worker[] {
     applyFromUrlWorker,
     processResponseWorker,
     interviewFollowupWorker,
+    agentmailProvisionRetryWorker,
   ];
 }

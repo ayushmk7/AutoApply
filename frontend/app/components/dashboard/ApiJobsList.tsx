@@ -12,24 +12,35 @@ type JobRow = {
 export default function ApiJobsList() {
   const { accessToken } = useApiSession();
   const [rows, setRows] = useState<JobRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [minFit, setMinFit] = useState(0);
+  const [companyQ, setCompanyQ] = useState('');
 
   const load = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetchJson<{ jobs: JobRow[] }>('/api/jobs?limit=50', {
+      const params = new URLSearchParams({
+        limit: '25',
+        page: String(page),
+      });
+      if (minFit > 0) params.set('min_fit_score', String(minFit));
+      if (companyQ.trim()) params.set('company', companyQ.trim());
+      const res = await apiFetchJson<{ jobs: JobRow[]; total?: number }>(`/api/jobs?${params.toString()}`, {
         accessToken,
       });
       setRows(res.jobs ?? []);
+      setTotal(Number(res.total ?? 0));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, page, minFit, companyQ]);
 
   useEffect(() => {
     void load();
@@ -48,20 +59,54 @@ export default function ApiJobsList() {
     }
   };
 
+  const skip = async (listingId: string) => {
+    if (!accessToken) return;
+    try {
+      await apiFetchJson(`/api/jobs/${encodeURIComponent(listingId)}/skip`, {
+        method: 'POST',
+        accessToken,
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    }
+  };
+
   if (!accessToken) return null;
 
   return (
     <div className="mb-8">
       <div className="mb-4 flex items-center justify-between">
         <h2 style={{ fontWeight: 800, fontFamily: 'var(--font-display)' }}>Your job queue (API)</h2>
-        <button
-          type="button"
-          className="mono text-xs underline"
-          style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}
-          onClick={() => void load()}
-        >
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <input
+            className="rounded-[var(--radius-md)] px-2 py-1 text-xs glass-nested"
+            placeholder="Company"
+            value={companyQ}
+            onChange={(e) => {
+              setPage(1);
+              setCompanyQ(e.target.value);
+            }}
+          />
+          <input
+            className="w-20 rounded-[var(--radius-md)] px-2 py-1 text-xs glass-nested"
+            placeholder="Min fit"
+            type="number"
+            value={minFit}
+            onChange={(e) => {
+              setPage(1);
+              setMinFit(Number(e.target.value || 0));
+            }}
+          />
+          <button
+            type="button"
+            className="mono text-xs underline"
+            style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}
+            onClick={() => void load()}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
       {loading && <p style={{ fontWeight: 200 }}>Loading…</p>}
       {error && <p style={{ fontWeight: 400, color: '#FF3B30' }}>{error}</p>}
@@ -95,10 +140,40 @@ export default function ApiJobsList() {
               >
                 Approve apply
               </button>
+              <button
+                type="button"
+                className="btn-micro rounded-[var(--radius-lg)] px-3 py-2 glass-nested"
+                onClick={() => void skip(id)}
+              >
+                Skip
+              </button>
             </li>
           );
         })}
       </ul>
+      {total > 25 && (
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            className="btn-micro rounded-[var(--radius-md)] px-3 py-1 glass-nested disabled:opacity-40"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Prev
+          </button>
+          <span className="mono text-xs" style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
+            Page {page}
+          </span>
+          <button
+            type="button"
+            className="btn-micro rounded-[var(--radius-md)] px-3 py-1 glass-nested disabled:opacity-40"
+            disabled={rows.length < 25}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

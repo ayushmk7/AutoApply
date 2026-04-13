@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../lib/config.js';
 import { logger } from '../lib/logger.js';
 import type { ProfileCv, ProfileQuestionnaire } from '../types/profile.js';
+import { incrMetricCounter } from './workflowTelemetry.js';
 
 const MODEL = 'claude-sonnet-4-20250514';
 
@@ -22,6 +23,7 @@ function getClient(): Anthropic {
 
 async function completeJson(system: string, user: string): Promise<string> {
   const client = getClient();
+  const estimatedIn = Math.ceil((system.length + user.length) / 4);
   const res = await client.messages.create({
     model: MODEL,
     max_tokens: 8192,
@@ -30,8 +32,13 @@ async function completeJson(system: string, user: string): Promise<string> {
   });
   const block = res.content.find((b) => b.type === 'text');
   if (!block || block.type !== 'text') {
+    await incrMetricCounter('claude', 'messages', 'calls', 1);
+    await incrMetricCounter('claude', 'messages', 'tokens_estimate', estimatedIn);
     throw new Error('claude_empty_response');
   }
+  const estimatedOut = Math.ceil(block.text.length / 4);
+  await incrMetricCounter('claude', 'messages', 'calls', 1);
+  await incrMetricCounter('claude', 'messages', 'tokens_estimate', estimatedIn + estimatedOut);
   return block.text;
 }
 

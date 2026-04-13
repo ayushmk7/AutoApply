@@ -7,15 +7,15 @@ This matrix maps current implementation against `docs/06_BACKEND_IMPLEMENTATION_
 | Phase | Requirement | Status | Evidence |
 |---|---|---|---|
 | 11 | Applications API list/detail/artifacts/retry/manual/notes | Done | `backend/server/src/routes/applications.ts`, `backend/server/src/services/applicationsApi.ts` |
-| 12 | Interview loop + calendar + deterministic follow-up behavior | Partial -> In progress | `backend/server/src/services/interviewApi.ts`, `backend/server/src/queues/interviewFollowupProcessor.ts` |
-| 13 | Feed REST + WS durability | Partial | `backend/server/src/services/feedSocket.ts`, `backend/server/src/services/feedApi.ts` |
-| 14 | AgentMail outbound/inbound/classify | Partial hardening | `backend/server/src/routes/webhooks.ts`, `backend/server/src/services/agentmailProvision.ts` |
-| 15 | Sheets sync + conflict handling + OAuth resilience | Partial | `backend/server/src/services/googleSheetsSync.ts`, `backend/server/src/routes/sheets.ts` |
+| 12 | Interview loop + calendar + deterministic follow-up behavior | In progress (hardening landed) | `backend/server/src/services/interviewApi.ts`, `backend/server/src/queues/interviewFollowupProcessor.ts` |
+| 13 | Feed REST + WS durability | In progress (reconnect + heartbeat landed) | `backend/server/src/services/feedSocket.ts`, `backend/server/src/services/feedApi.ts` |
+| 14 | AgentMail outbound/inbound/classify | In progress (retry queue + dedupe/audit hardening) | `backend/server/src/routes/webhooks.ts`, `backend/server/src/services/agentmailProvision.ts` |
+| 15 | Sheets sync + conflict handling + OAuth resilience | In progress (bidirectional conflict semantics landed) | `backend/server/src/services/googleSheetsSync.ts`, `backend/server/src/routes/sheets.ts` |
 | 16 | Quotas/rate limits/playwright cap | Mostly done | `backend/server/src/services/dailyApplicationRedisQuota.ts`, `backend/server/src/services/distributedRateLimits.ts` |
-| 17 | Observability and metrics completeness | Partial -> In progress | `backend/server/src/services/workflowMetrics.ts`, `backend/server/src/services/workflowTelemetry.ts` |
-| 18 | Testing minimum bar (unit + integration + fixture E2E) | Missing | `backend/server/package.json`, `backend/server/src/services/*.test.ts` |
-| 19 | Docker/deploy readiness and health wiring | Partial | `backend/docker-compose.yml`, `backend/server/Dockerfile`, `backend/server/src/routes/health.ts` |
-| 20 | Frontend/backend full integration | Partial | `frontend/app/components/dashboard/*`, `frontend/app/lib/api.ts` |
+| 17 | Observability and metrics completeness | In progress (claude apply + queue metrics/readiness expanded) | `backend/server/src/services/workflowMetrics.ts`, `backend/server/src/services/workflowTelemetry.ts` |
+| 18 | Testing minimum bar (unit + integration + fixture E2E) | In progress | `backend/server/package.json`, `backend/server/src/services/*.test.ts` |
+| 19 | Docker/deploy readiness and health wiring | In progress | `backend/docker-compose.yml`, `backend/server/Dockerfile`, `backend/server/src/routes/health.ts` |
+| 20 | Frontend/backend full integration | In progress (dashboard API wiring tranche active) | `frontend/app/components/dashboard/*`, `frontend/app/lib/api.ts` |
 
 ## Route Matrix (High-level)
 

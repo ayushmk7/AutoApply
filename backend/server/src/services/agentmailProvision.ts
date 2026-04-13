@@ -3,6 +3,7 @@ import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { config } from '../lib/config.js';
 import { userDocumentRef } from '../lib/firestorePaths.js';
 import { logger } from '../lib/logger.js';
+import { enqueueAgentmailProvisionRetryJob } from '../queues/producers.js';
 
 /**
  * Phase 4.6 — per-user AgentMail address; collisions retried with new suffix.
@@ -106,14 +107,25 @@ export async function provisionAgentMailIfNeeded(
           'agentmail_provision_http_error'
         );
         if (res.status >= 500) {
+          const delayMs = Math.min(10 * 60_000, 30_000 * nextAttempts);
           await ref.set(
             {
               agentmail_provision_retry_after: new Date(
-                Date.now() + Math.min(10 * 60_000, 30_000 * nextAttempts)
+                Date.now() + delayMs
               ).toISOString(),
             },
             { merge: true }
           );
+          await enqueueAgentmailProvisionRetryJob(
+            {
+              uid,
+              attempt: nextAttempts,
+              reason: code,
+              requestId,
+            },
+            requestId,
+            delayMs
+          ).catch(() => {});
         }
         return;
       }
@@ -144,15 +156,27 @@ export async function provisionAgentMailIfNeeded(
       logger.info({ requestId, uid }, 'agentmail_provision_ok');
       return;
     } catch (err) {
+      const delayMs = Math.min(10 * 60_000, 30_000 * nextAttempts);
       await ref.set(
         {
           agentmail_provision_attempts: nextAttempts,
           agentmail_provision_status: 'retryable_failure',
           agentmail_provision_error: 'network_error',
+          agentmail_provision_retry_after: new Date(Date.now() + delayMs).toISOString(),
           updated_at: FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
+      await enqueueAgentmailProvisionRetryJob(
+        {
+          uid,
+          attempt: nextAttempts,
+          reason: 'network_error',
+          requestId,
+        },
+        requestId,
+        delayMs
+      ).catch(() => {});
       logger.warn({ err, requestId, uid }, 'agentmail_provision_network_error');
       return;
     }

@@ -1,7 +1,10 @@
 import { motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useModals } from '../../context/ModalContext';
 import { demoResumes } from '../../data/demoData';
+import { useApiSession } from '../../context/ApiSessionContext';
+import { ApiError, apiFetchJson } from '../../lib/api';
+import { fetchApplicationsWithListing, type ApiApplicationRow } from '../../lib/dashboardApi';
 import { useDashboardContext } from '../Dashboard';
 import {
   Dialog,
@@ -13,6 +16,7 @@ import { Switch } from '../ui/switch';
 
 export default function ResumeVault() {
   const { demoMode } = useDashboardContext();
+  const { accessToken } = useApiSession();
   const { openAts } = useModals();
   const [company, setCompany] = useState('All');
   const [atsMin, setAtsMin] = useState(0);
@@ -20,8 +24,21 @@ export default function ResumeVault() {
   const [pdfResumeId, setPdfResumeId] = useState<string | null>(null);
   const [compareId, setCompareId] = useState<string | null>(null);
   const [forceEmpty, setForceEmpty] = useState(false);
+  const [apiRows, setApiRows] = useState<ApiApplicationRow[]>([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const source = demoMode ? (forceEmpty ? [] : demoResumes) : [];
+
+  useEffect(() => {
+    if (demoMode || !accessToken) return;
+    setApiLoading(true);
+    setApiError(null);
+    void fetchApplicationsWithListing(accessToken)
+      .then((rows) => setApiRows(rows.filter((r) => Boolean(r.application.resume_url || r.application.cover_letter_url))))
+      .catch((err) => setApiError(err instanceof ApiError ? err.message : String(err)))
+      .finally(() => setApiLoading(false));
+  }, [demoMode, accessToken]);
 
   const filtered = useMemo(() => {
     return source.filter((r) => {
@@ -244,8 +261,45 @@ export default function ResumeVault() {
         ))}
       </div>}
       {!demoMode && (
-        <div className="glass-panel p-6 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
-          Resume vault is waiting on dedicated API list wiring; artifact URLs are available from application detail endpoints.
+        <div className="glass-panel p-6 text-sm">
+          {apiLoading ? (
+            <p style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>Loading artifact history...</p>
+          ) : apiError ? (
+            <p style={{ fontWeight: 400, color: '#FF3B30' }}>{apiError}</p>
+          ) : apiRows.length === 0 ? (
+            <p style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+              No generated artifacts yet.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {apiRows.map((row) => (
+                <li key={row.application.id} className="flex items-center justify-between rounded-[var(--radius-md)] glass-nested px-3 py-2">
+                  <div>
+                    <div style={{ fontWeight: 800 }}>{row.listing?.company ?? '—'} — {row.listing?.role ?? '—'}</div>
+                    <div className="text-xs" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
+                      status: {row.application.status}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="btn-micro rounded-[var(--radius-md)] px-3 py-1 glass-nested"
+                      onClick={() => void openArtifact(accessToken, row.application.id, 'resume')}
+                    >
+                      Resume PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-micro rounded-[var(--radius-md)] px-3 py-1 glass-nested"
+                      onClick={() => void openArtifact(accessToken, row.application.id, 'cover-letter')}
+                    >
+                      Cover Letter
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -268,4 +322,19 @@ export default function ResumeVault() {
       </Dialog>}
     </div>
   );
+}
+
+async function openArtifact(
+  accessToken: string | null,
+  applicationId: string,
+  kind: 'resume' | 'cover-letter'
+): Promise<void> {
+  if (!accessToken) return;
+  const res = await apiFetchJson<{ url: string }>(
+    `/api/applications/${encodeURIComponent(applicationId)}/${kind}`,
+    { accessToken }
+  );
+  if (res.url) {
+    window.open(res.url, '_blank', 'noopener,noreferrer');
+  }
 }

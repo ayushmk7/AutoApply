@@ -30,6 +30,7 @@ export async function getWorkflowMetricsSnapshot(): Promise<Record<string, unkno
     'apply_from_pasted_url',
     'process_response',
     'interview_followup',
+    'agentmail_provision_retry',
   ]) {
     const h = await readMetricHash('queue', k);
     const completed = Number(h.completed ?? '0');

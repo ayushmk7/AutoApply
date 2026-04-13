@@ -9,6 +9,7 @@ export const QUEUE_NAMES = {
   applyFromPastedUrl: 'apply_from_pasted_url',
   processResponse: 'process_response',
   interviewFollowup: 'interview_followup',
+  agentmailProvisionRetry: 'agentmail_provision_retry',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

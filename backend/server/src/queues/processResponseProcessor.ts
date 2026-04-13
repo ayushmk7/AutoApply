@@ -9,6 +9,7 @@ import { updateSheetRowForApplication } from '../services/googleSheetsSync.js';
 import type { ApplicationDocument } from '../types/application.js';
 import type { ListingDocument } from '../types/listing.js';
 import type { ProcessResponseJobData } from './jobTypes.js';
+import { getInterviewFollowupQueue } from './producers.js';
 
 function parseInterviewDate(iso: string | undefined): Timestamp | undefined {
   if (!iso) return undefined;
@@ -70,6 +71,23 @@ export async function executeProcessResponseWorkflow(
           patch.status = 'waiting';
         } else {
           patch.status = 'waiting';
+        }
+
+        if (app.followup_state === 'scheduled') {
+          patch.followup_state = 'cancelled';
+          patch.followup_cancel_reason = 'recruiter_response_received';
+          patch.followup_due_at = FieldValue.delete();
+          const prevAudit = Array.isArray(app.followup_audit) ? app.followup_audit.slice(-9) : [];
+          prevAudit.push({
+            at: new Date().toISOString(),
+            action: 'cancelled',
+            reason: 'recruiter_response_received',
+            request_id: requestId,
+          });
+          patch.followup_audit = prevAudit;
+          await getInterviewFollowupQueue()
+            .remove(`interview-followup:${uid}:${applicationId}`)
+            .catch(() => {});
         }
 
         await appRef.set(patch, { merge: true });

@@ -72,6 +72,17 @@ paths:
       responses:
         '202':
           description: Queued
+  /jobs/from-url/{application_id}/status:
+    get:
+      summary: Apply-from-url application status snapshot
+      parameters:
+        - in: path
+          name: application_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Status payload
   /feed:
     get:
       summary: Feed history
@@ -82,6 +93,169 @@ paths:
       responses:
         '200':
           description: Events page
+  /applications:
+    get:
+      summary: List user applications
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: sort_by
+          schema: { type: string, enum: [created_at, updated_at, fit_score] }
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Applications page
+  /applications/{id}:
+    get:
+      summary: Application detail plus listing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Application detail
+  /applications/{id}/resume:
+    get:
+      summary: Signed resume URL
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Signed URL payload
+  /applications/{id}/cover-letter:
+    get:
+      summary: Signed cover-letter URL
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Signed URL payload
+  /applications/{id}/screenshot:
+    get:
+      summary: Signed screenshot URL
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Signed URL payload
+  /applications/{id}/retry:
+    post:
+      summary: Requeue retryable application
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Retry accepted
+  /applications/{id}/manual-done:
+    post:
+      summary: Mark manual-needed application completed
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated status
+  /applications/{id}/notes:
+    put:
+      summary: Update user notes
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Notes updated
+  /profile:
+    get:
+      summary: Profile document
+      responses:
+        '200':
+          description: Profile
+    put:
+      summary: Update profile/questionnaire/preferences partial
+      responses:
+        '200':
+          description: Profile updated
+  /profile/preferences:
+    put:
+      summary: Replace mutable preferences
+      responses:
+        '200':
+          description: Preferences updated
+  /profile/cv:
+    post:
+      summary: Upload and parse CV
+      responses:
+        '200':
+          description: Parsed CV
+    put:
+      summary: Save edited CV JSON
+      responses:
+        '200':
+          description: CV updated
+  /profile/linkedin:
+    post:
+      summary: Upload LinkedIn connections CSV
+      responses:
+        '200':
+          description: LinkedIn connections normalized
+  /sheets/enable:
+    post:
+      summary: Begin Google Sheets OAuth flow
+      responses:
+        '200':
+          description: Authorization URL
+  /sheets/disable:
+    post:
+      summary: Disable sheets integration
+      responses:
+        '200':
+          description: Disabled
+  /sheets/sync:
+    post:
+      summary: Trigger full sheet sync
+      responses:
+        '200':
+          description: Sync requested
+  /sheets/status:
+    get:
+      summary: Sheets integration status
+      responses:
+        '200':
+          description: Status payload
+  /webhooks/agentmail:
+    post:
+      summary: AgentMail inbound webhook
+      security: []
+      responses:
+        '200':
+          description: Accepted / duplicate / ignored
+        '401':
+          description: Invalid signature
   /metrics:
     get:
       summary: Queue metrics (optional X-Metrics-Key)

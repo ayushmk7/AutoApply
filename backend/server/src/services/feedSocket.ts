@@ -9,6 +9,7 @@ import { getFirebaseAuth, isFirebaseInitialized } from '../lib/firebase.js';
 import { logger } from '../lib/logger.js';
 
 const socketsByUid = new Map<string, Set<WebSocket>>();
+const socketHeartbeat = new WeakMap<WebSocket, NodeJS.Timeout>();
 
 function trackSocket(uid: string, socket: WebSocket): void {
   let bucket = socketsByUid.get(uid);
@@ -17,7 +18,19 @@ function trackSocket(uid: string, socket: WebSocket): void {
     socketsByUid.set(uid, bucket);
   }
   bucket.add(socket);
+  const heartbeat = setInterval(() => {
+    if (socket.readyState === 1) {
+      try {
+        socket.send(JSON.stringify({ type: 'heartbeat', ts: new Date().toISOString() }));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, 25_000);
+  socketHeartbeat.set(socket, heartbeat);
   socket.on('close', () => {
+    const hb = socketHeartbeat.get(socket);
+    if (hb) clearInterval(hb);
     bucket?.delete(socket);
     if (bucket && bucket.size === 0) {
       socketsByUid.delete(uid);
@@ -35,6 +48,8 @@ function broadcastToUid(uid: string, raw: string): void {
       } catch (err) {
         logger.warn({ err, uid }, 'feed_ws_send_failed');
       }
+    } else if (s.readyState >= 2) {
+      bucket.delete(s);
     }
   }
 }
@@ -80,6 +95,16 @@ export function attachLiveFeedServer(wss: WebSocketServer): void {
     }
 
     trackSocket(uid, socket);
+    socket.on('message', (raw) => {
+      const text = String(raw ?? '').trim();
+      if (text === 'ping') {
+        try {
+          socket.send('pong');
+        } catch {
+          /* ignore */
+        }
+      }
+    });
     logger.info({ handshakeId, uid }, 'feed_ws_connected');
   });
 

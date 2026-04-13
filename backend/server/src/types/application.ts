@@ -63,4 +63,26 @@ export interface ApplicationDocument {
   calendar_event_url?: string;
   calendar_sync_error?: string;
   followup_due_at?: unknown;
+  followup_job_id?: string;
+  followup_state?:
+    | 'none'
+    | 'scheduled'
+    | 'cancelled'
+    | 'sent'
+    | 'skipped_response_received'
+    | 'skipped_state_conflict';
+  followup_cancel_reason?: string;
+  followup_last_attempt_at?: unknown;
+  followup_audit?: Array<{
+    at: string;
+    action: 'scheduled' | 'cancelled' | 'sent' | 'skipped';
+    reason?: string;
+    request_id?: string;
+  }>;
+  sheets_row_id?: string;
+  sheets_row_version?: number;
+  sheets_conflict_state?: 'clean' | 'conflict';
+  sheets_conflict_reason?: string;
+  sheets_last_sync_direction?: 'firestore_to_sheet' | 'sheet_to_firestore';
+  sheets_last_sync_at?: unknown;
 }

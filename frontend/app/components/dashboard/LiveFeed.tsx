@@ -103,7 +103,7 @@ export default function LiveFeed() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      {!demoMode && <ApiLiveFeedPanel />}
+      {!demoMode && <ApiLiveFeedPanel compact />}
       {demoMode && (
       <div className="mb-8 flex items-center justify-center gap-3">
         <h1 style={{ fontWeight: 900, fontFamily: 'var(--font-display)' }}>Activity</h1>

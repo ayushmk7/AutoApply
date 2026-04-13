@@ -29,6 +29,11 @@ function defaultPreferences(): ProfilePreferences {
 }
 
 const HEADER_ROW = [
+  'Application ID',
+  'Row Version',
+  'Last Writer',
+  'Conflict State',
+  'Conflict Reason',
   'Company',
   'Role',
   'Location',
@@ -279,6 +284,11 @@ async function rowForApplication(
     : null;
 
   return [
+    app.id,
+    String(app.sheets_row_version ?? 0),
+    'firestore',
+    app.sheets_conflict_state ?? 'clean',
+    app.sheets_conflict_reason ?? '',
     listing?.company ?? '',
     listing?.role ?? '',
     listing?.location ?? '',
@@ -295,6 +305,90 @@ async function rowForApplication(
     getNextAction(app),
     app.user_notes ?? '',
   ];
+}
+
+export function parseRowVersion(value: unknown): number {
+  const n = Number(String(value ?? '').trim());
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
+
+export function parseSheetStatus(value: unknown): ApplicationDocument['status'] | undefined {
+  const v = String(value ?? '').trim();
+  if (!v) return undefined;
+  const allowed: ApplicationDocument['status'][] = [
+    'queued',
+    'applying',
+    'applied',
+    'emailed',
+    'waiting',
+    'rejected_auto',
+    'rejected_review',
+    'interview_scheduled',
+    'thank_you_sent',
+    'followup_sent',
+    'offer',
+    'accepted',
+    'declined',
+    'manual_needed',
+  ];
+  return allowed.includes(v as ApplicationDocument['status']) ? (v as ApplicationDocument['status']) : undefined;
+}
+
+async function pullSheetEditsIntoFirestore(
+  db: Firestore,
+  uid: string,
+  spreadsheetId: string,
+  auth: InstanceType<typeof google.auth.OAuth2>,
+  requestId: string
+): Promise<void> {
+  const sheets = google.sheets({ version: 'v4', auth });
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: 'Applications!A2:T10000',
+  });
+  const rows = res.data.values ?? [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] ?? [];
+    const applicationId = String(row[0] ?? '').trim();
+    if (!applicationId) continue;
+    const rowVersion = parseRowVersion(row[1]);
+    const statusFromSheet = parseSheetStatus(row[11]);
+    const notesFromSheet = String(row[19] ?? '').trim();
+    const appRef = userApplicationRef(db, uid, applicationId);
+    const snap = await appRef.get();
+    if (!snap.exists) continue;
+    const app = { id: snap.id, ...(snap.data() as object) } as ApplicationDocument;
+    const fsVersion = Number(app.sheets_row_version ?? 0);
+    if (rowVersion < fsVersion) {
+      await appRef.set(
+        {
+          sheets_conflict_state: 'conflict',
+          sheets_conflict_reason: 'sheet_version_stale',
+          updated_at: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      continue;
+    }
+    if (rowVersion === fsVersion) continue;
+    const patch: Record<string, unknown> = {
+      sheets_row_version: rowVersion,
+      sheets_conflict_state: 'clean',
+      sheets_conflict_reason: FieldValue.delete(),
+      sheets_last_sync_direction: 'sheet_to_firestore',
+      sheets_last_sync_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    };
+    if (statusFromSheet && statusFromSheet !== app.status) {
+      patch.status = statusFromSheet;
+    }
+    if (notesFromSheet !== String(app.user_notes ?? '')) {
+      patch.user_notes = notesFromSheet;
+    }
+    await appRef.set(patch, { merge: true });
+    logger.info({ uid, applicationId, requestId }, 'google_sheets_sheet_to_firestore_applied');
+  }
 }
 
 export async function fullSyncUserSheet(
@@ -324,15 +418,18 @@ export async function fullSyncUserSheet(
   }
 
   try {
+    await pullSheetEditsIntoFirestore(db, uid, spreadsheetId, auth, requestId).catch((err) => {
+      logger.warn({ err, uid, requestId }, 'google_sheets_pull_sheet_edits_failed');
+    });
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
-      range: 'Applications!A2:O10000',
+      range: 'Applications!A2:T10000',
     });
 
     if (rows.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Applications!A2:O${1 + rows.length}`,
+        range: `Applications!A2:T${1 + rows.length}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: rows },
       });
@@ -343,7 +440,16 @@ export async function fullSyncUserSheet(
     for (const app of apps) {
       batch.set(
         userApplicationRef(db, uid, app.id),
-        { sheets_row: rowNum, updated_at: FieldValue.serverTimestamp() },
+        {
+          sheets_row: rowNum,
+          sheets_row_id: app.id,
+          sheets_row_version: Number(app.sheets_row_version ?? 0) + 1,
+          sheets_conflict_state: 'clean',
+          sheets_conflict_reason: FieldValue.delete(),
+          sheets_last_sync_direction: 'firestore_to_sheet',
+          sheets_last_sync_at: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
+        },
         { merge: true }
       );
       rowNum++;
@@ -399,10 +505,21 @@ export async function updateSheetRowForApplication(
   try {
     await sheets.spreadsheets.values.update({
       spreadsheetId: ctx.spreadsheetId,
-      range: `Applications!A${rowIndex}:O${rowIndex}`,
+      range: `Applications!A${rowIndex}:T${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values },
     });
+    await userApplicationRef(db, uid, applicationId).set(
+      {
+        sheets_row_version: Number(app.sheets_row_version ?? 0) + 1,
+        sheets_conflict_state: 'clean',
+        sheets_conflict_reason: FieldValue.delete(),
+        sheets_last_sync_direction: 'firestore_to_sheet',
+        sheets_last_sync_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
     await userDocumentRef(db, uid).set(
       {
         sheets_last_sync_at: FieldValue.serverTimestamp(),
@@ -435,7 +552,7 @@ export async function appendApplicationRowIfEnabled(
   try {
     const res = await sheets.spreadsheets.values.append({
       spreadsheetId: ctx.spreadsheetId,
-      range: 'Applications!A:O',
+      range: 'Applications!A:T',
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [row] },
@@ -445,7 +562,16 @@ export async function appendApplicationRowIfEnabled(
     const rowNum = m ? Number.parseInt(m[1], 10) : undefined;
     if (rowNum) {
       await userApplicationRef(db, uid, applicationId).set(
-        { sheets_row: rowNum, updated_at: FieldValue.serverTimestamp() },
+        {
+          sheets_row: rowNum,
+          sheets_row_id: applicationId,
+          sheets_row_version: Number(app.sheets_row_version ?? 0) + 1,
+          sheets_conflict_state: 'clean',
+          sheets_conflict_reason: FieldValue.delete(),
+          sheets_last_sync_direction: 'firestore_to_sheet',
+          sheets_last_sync_at: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
+        },
         { merge: true }
       );
     }

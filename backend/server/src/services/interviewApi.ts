@@ -18,7 +18,7 @@ import type { ListingDocument } from '../types/listing.js';
 import { config } from '../lib/config.js';
 import { getAuthorizedSheetsClient, updateSheetRowForApplication } from './googleSheetsSync.js';
 import { emitUserFeed } from './feedEmit.js';
-import { enqueueInterviewFollowupJob } from '../queues/producers.js';
+import { enqueueInterviewFollowupJob, getInterviewFollowupQueue } from '../queues/producers.js';
 
 export const confirmInterviewBodySchema = z.object({
   selected_time: z.string().min(1),
@@ -56,6 +56,58 @@ function pickRecruiterEmail(listing: ListingDocument): string | null {
 }
 
 const CONFIRM_FROM: ApplicationStatus[] = ['waiting', 'emailed', 'applied', 'interview_scheduled'];
+const FOLLOWUP_JOB_PREFIX = 'interview-followup';
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function appendFollowupAudit(
+  app: ApplicationDocument,
+  action: 'scheduled' | 'cancelled' | 'sent' | 'skipped',
+  requestId: string,
+  reason?: string
+): Array<{ at: string; action: 'scheduled' | 'cancelled' | 'sent' | 'skipped'; reason?: string; request_id?: string }> {
+  const current = Array.isArray(app.followup_audit) ? app.followup_audit.slice(-9) : [];
+  current.push({
+    at: nowIso(),
+    action,
+    reason: reason?.slice(0, 200),
+    request_id: requestId,
+  });
+  return current;
+}
+
+async function cancelFollowupJobIfExists(uid: string, applicationId: string): Promise<void> {
+  if (!config.redisUrl) return;
+  const q = getInterviewFollowupQueue();
+  const jobId = `${FOLLOWUP_JOB_PREFIX}:${uid}:${applicationId}`;
+  await q.remove(jobId).catch(() => {});
+}
+
+async function markFollowupCancelled(
+  db: Firestore,
+  uid: string,
+  applicationId: string,
+  requestId: string,
+  reason: string
+): Promise<void> {
+  const appRef = userApplicationRef(db, uid, applicationId);
+  const snap = await appRef.get();
+  if (!snap.exists) return;
+  const app = docToApplication(snap.id, snap.data() as Record<string, unknown>);
+  await cancelFollowupJobIfExists(uid, applicationId);
+  await appRef.set(
+    {
+      followup_state: 'cancelled',
+      followup_cancel_reason: reason.slice(0, 200),
+      followup_due_at: FieldValue.delete(),
+      followup_audit: appendFollowupAudit(app, 'cancelled', requestId, reason),
+      updated_at: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
 
 function parseIsoOffset(s: string): Date {
   const hasTz = /(Z|[+-]\d{2}:\d{2})$/.test(s.trim());
@@ -200,6 +252,9 @@ export async function confirmInterview(
     {
       status: 'interview_scheduled',
       interview_date: Timestamp.fromDate(selected),
+      followup_state: 'cancelled',
+      followup_cancel_reason: 'interview_confirmed',
+      followup_due_at: FieldValue.delete(),
       calendar_event_id: cal.eventId ?? FieldValue.delete(),
       calendar_event_url: cal.eventUrl ?? FieldValue.delete(),
       calendar_sync_error: cal.created ? FieldValue.delete() : cal.error ?? 'calendar_not_connected',
@@ -223,6 +278,7 @@ export async function confirmInterview(
     { company: listing.company, role: listing.role }
   );
 
+  await markFollowupCancelled(db, uid, applicationId, requestId, 'interview_confirmed');
   void updateSheetRowForApplication(db, uid, applicationId, requestId).catch(() => {});
 
   return {
@@ -354,6 +410,10 @@ export async function sendThankYouEmail(
       status: 'thank_you_sent',
       thank_you_sent: FieldValue.serverTimestamp(),
       followup_due_at: followupDue,
+      followup_job_id: `${FOLLOWUP_JOB_PREFIX}:${uid}:${applicationId}`,
+      followup_state: 'scheduled',
+      followup_cancel_reason: FieldValue.delete(),
+      followup_audit: appendFollowupAudit(app, 'scheduled', requestId),
       updated_at: FieldValue.serverTimestamp(),
     },
     { merge: true }
@@ -449,6 +509,11 @@ export async function sendFollowUpEmail(
     {
       status: 'followup_sent',
       followup_sent: FieldValue.serverTimestamp(),
+      followup_state: 'sent',
+      followup_due_at: FieldValue.delete(),
+      followup_cancel_reason: FieldValue.delete(),
+      followup_last_attempt_at: FieldValue.serverTimestamp(),
+      followup_audit: appendFollowupAudit(app, 'sent', requestId),
       updated_at: FieldValue.serverTimestamp(),
     },
     { merge: true }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApiSession } from '../../context/ApiSessionContext';
 import { apiFetchJson, ApiError } from '../../lib/api';
 
@@ -14,6 +14,7 @@ export default function ApplyFromUrlPanel() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastApplicationId, setLastApplicationId] = useState<string | null>(null);
+  const [statusLabel, setStatusLabel] = useState<string | null>(null);
 
   if (!accessToken) return null;
 
@@ -38,6 +39,7 @@ export default function ApplyFromUrlPanel() {
       });
       setMessage(res.message ?? 'Queued');
       setLastApplicationId(res.application_id);
+      setStatusLabel(res.status ?? 'queued');
       if (!res.reused) {
         setUrl('');
         setJd('');
@@ -48,6 +50,22 @@ export default function ApplyFromUrlPanel() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!accessToken || !lastApplicationId) return;
+    const interval = window.setInterval(() => {
+      void apiFetchJson<{ application?: { status?: string } }>(
+        `/api/jobs/from-url/${encodeURIComponent(lastApplicationId)}/status`,
+        { accessToken }
+      )
+        .then((body) => {
+          const status = body.application?.status;
+          if (status) setStatusLabel(status);
+        })
+        .catch(() => {});
+    }, 8000);
+    return () => window.clearInterval(interval);
+  }, [accessToken, lastApplicationId]);
 
   return (
     <div className="glass-panel mb-6 p-6">
@@ -101,6 +119,7 @@ export default function ApplyFromUrlPanel() {
         <p className="mt-3 text-sm" style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
           {message}
           {lastApplicationId ? ` (${lastApplicationId})` : ''}
+          {statusLabel ? ` · status: ${statusLabel}` : ''}
         </p>
       )}
       {error && (

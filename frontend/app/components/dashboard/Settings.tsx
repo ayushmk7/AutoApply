@@ -1,9 +1,11 @@
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Calendar as CalendarIcon, ChevronDown, Linkedin, Table } from 'lucide-react';
 import { useDashboardContext } from '../Dashboard';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { Switch as UiSwitch } from '../ui/switch';
+import { useApiSession } from '../../context/ApiSessionContext';
+import { ApiError, apiFetchJson } from '../../lib/api';
 
 const demoParsedCvSections: { title: string; body: string }[] = [
   {
@@ -34,12 +36,18 @@ const demoParsedCvSections: { title: string; body: string }[] = [
 
 export default function Settings() {
   const { onEditParsedCv, onSignOut, demoMode } = useDashboardContext();
+  const { accessToken } = useApiSession();
   const [threshold, setThreshold] = useState(75);
   const [sheetsOn, setSheetsOn] = useState(false);
-  const [sheetId] = useState('');
+  const [sheetId, setSheetId] = useState('');
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [cvUploadDate] = useState<string | null>(null);
-  const [linkedInCount] = useState<number | null>(null);
+  const [linkedInCount, setLinkedInCount] = useState<number | null>(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [dailyLimit, setDailyLimit] = useState(15);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const [essays, setEssays] = useState({
     technical: '',
@@ -49,6 +57,89 @@ export default function Settings() {
   });
   const limits = { technical: 500, teamwork: 400, challenge: 400, motivation: 300 } as const;
   const [parsedCvOpen, setParsedCvOpen] = useState(false);
+
+  useEffect(() => {
+    if (demoMode || !accessToken) return;
+    void apiFetchJson<{
+      email?: string;
+      questionnaire?: { name?: string; phone?: string };
+      preferences?: { auto_apply_threshold?: number; daily_limit?: number; linkedin_connections?: unknown[] };
+    }>('/api/profile', { accessToken })
+      .then((profile) => {
+        setEmail(profile.email ?? '');
+        setName(profile.questionnaire?.name ?? '');
+        setPhone(profile.questionnaire?.phone ?? '');
+        setThreshold(Number(profile.preferences?.auto_apply_threshold ?? 75));
+        setDailyLimit(Number(profile.preferences?.daily_limit ?? 15));
+        setLinkedInCount(Array.isArray(profile.preferences?.linkedin_connections) ? profile.preferences!.linkedin_connections!.length : 0);
+      })
+      .catch(() => {});
+    void apiFetchJson<{ enabled: boolean; spreadsheet_id?: string; sync_error?: string }>('/api/sheets/status', {
+      accessToken,
+    })
+      .then((body) => {
+        setSheetsOn(Boolean(body.enabled));
+        setSheetId(body.spreadsheet_id ?? '');
+      })
+      .catch(() => {});
+  }, [demoMode, accessToken]);
+
+  const saveProfile = async () => {
+    if (!accessToken) return;
+    try {
+      await apiFetchJson('/api/profile', {
+        method: 'PUT',
+        accessToken,
+        body: JSON.stringify({
+          email,
+          questionnaire: { name, phone },
+        }),
+      });
+      await apiFetchJson('/api/profile/preferences', {
+        method: 'PUT',
+        accessToken,
+        body: JSON.stringify({
+          resume_template: 'jakes',
+          auto_apply_threshold: threshold,
+          daily_limit: dailyLimit,
+          sheets_enabled: sheetsOn,
+          sheets_id: sheetId,
+          calendar_connected: calendarConnected,
+        }),
+      });
+      setStatusMessage('Saved.');
+    } catch (err) {
+      setStatusMessage(err instanceof ApiError ? err.message : 'Save failed');
+    }
+  };
+
+  const toggleSheets = async (next: boolean) => {
+    if (!accessToken) return;
+    setSheetsOn(next);
+    try {
+      if (next) {
+        const r = await apiFetchJson<{ authorization_url: string }>('/api/sheets/enable', {
+          method: 'POST',
+          accessToken,
+        });
+        window.open(r.authorization_url, '_blank', 'noopener,noreferrer');
+      } else {
+        await apiFetchJson('/api/sheets/disable', { method: 'POST', accessToken });
+      }
+    } catch (err) {
+      setStatusMessage(err instanceof ApiError ? err.message : 'Sheets update failed');
+    }
+  };
+
+  const forceSyncSheets = async () => {
+    if (!accessToken) return;
+    try {
+      await apiFetchJson('/api/sheets/sync', { method: 'POST', accessToken });
+      setStatusMessage('Sheets sync started.');
+    } catch (err) {
+      setStatusMessage(err instanceof ApiError ? err.message : 'Sheets sync failed');
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -77,6 +168,8 @@ export default function Settings() {
                   placeholder="Your name"
                   className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
                   style={{ fontWeight: 200 }}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div>
@@ -88,6 +181,8 @@ export default function Settings() {
                   placeholder="you@university.edu"
                   className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
                   style={{ fontWeight: 200 }}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>
@@ -100,6 +195,8 @@ export default function Settings() {
                 placeholder="+1 (555) 000-0000"
                 className="w-full rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
                 style={{ fontWeight: 200 }}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
               />
             </div>
             <div>
@@ -110,6 +207,16 @@ export default function Settings() {
               >
                 Re-upload CV
               </button>
+              {!demoMode && (
+                <button
+                  type="button"
+                  className="btn-micro ml-2 rounded-[var(--radius-lg)] px-6 py-2.5 text-white"
+                  style={{ background: '#0066FF' }}
+                  onClick={() => void saveProfile()}
+                >
+                  Save profile
+                </button>
+              )}
               {cvUploadDate && (
                 <p className="mt-2 text-sm" style={{ fontWeight: 200, color: 'var(--text-secondary)' }}>
                   Last uploaded: {cvUploadDate}
@@ -195,7 +302,8 @@ export default function Settings() {
               </label>
               <input
                 type="number"
-                defaultValue={15}
+                value={dailyLimit}
+                onChange={(e) => setDailyLimit(Number(e.target.value || 0))}
                 className="w-32 rounded-[var(--radius-md)] px-4 py-3 glass-nested outline-none focus:ring-2 focus:ring-[#0066FF]/30"
                 style={{ fontWeight: 200 }}
               />
@@ -306,11 +414,12 @@ export default function Settings() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <UiSwitch checked={sheetsOn} onCheckedChange={setSheetsOn} />
+                <UiSwitch checked={sheetsOn} onCheckedChange={(v) => void toggleSheets(v)} />
                 <button
                   type="button"
                   className="btn-micro rounded-[var(--radius-lg)] px-4 py-2 glass-nested"
                   style={{ fontWeight: 800 }}
+                  onClick={() => void forceSyncSheets()}
                 >
                   Force Sync
                 </button>
@@ -353,6 +462,11 @@ export default function Settings() {
                 Update CSV
               </button>
             </div>
+            {statusMessage && (
+              <p className="text-xs" style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
+                {statusMessage}
+              </p>
+            )}
           </div>
         </motion.div>
 

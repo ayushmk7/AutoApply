@@ -12,6 +12,7 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   GoogleAuthProvider,
+  getIdToken,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -78,6 +79,20 @@ export function ApiSessionProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => unsub();
+  }, [persistToken]);
+
+  useEffect(() => {
+    const id = window.setInterval(async () => {
+      const fb = getOrInitFirebase();
+      if (!fb?.auth.currentUser) return;
+      try {
+        const token = await getIdToken(fb.auth.currentUser, true);
+        persistToken(token);
+      } catch {
+        /* ignore refresh errors; regular auth flow handles them */
+      }
+    }, 20 * 60 * 1000);
+    return () => window.clearInterval(id);
   }, [persistToken]);
 
   const signInDemo = useCallback(async () => {

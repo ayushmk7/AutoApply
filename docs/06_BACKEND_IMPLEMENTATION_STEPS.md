@@ -873,7 +873,7 @@ Per README and general PRD:
 
 - Input: URL field + optional “Paste job description” textarea (collapsed until needed).
 - Submit → `POST /api/jobs/from-url`.
-- Show progress via feed events; on `LOW_CONFIDENCE_EXTRACTION` or `FETCH_BLOCKED`, prompt for JD paste and call endpoint again with `job_description_text` (same `application_id` if you support resume, or create new—define one idempotent strategy).
+- Show progress via feed events; on `EXTRACTION_LOW_CONFIDENCE` or `FETCH_BLOCKED`, prompt for JD paste and call endpoint again with `job_description_text` (same `application_id` if you support resume, or create new—define one idempotent strategy).
 
 **Edge cases**
 

@@ -1,5 +1,17 @@
 # Backend
 
+## Canonical Run Paths
+
+- Full local stack (recommended): from repo root run `npm run dev:stack`
+- Backend API only: `npm --prefix server run dev`
+- Backend worker only: `npm --prefix server run dev:worker`
+
+## Readiness Quick Check
+
+- `GET /healthz` should return `status: ok`
+- `GET /readyz` should return `status: ok` and include `queue_probe: ok`
+- `GET /api/metrics` requires `X-Metrics-Key` when `METRICS_API_KEY` is set
+
 Backend services for AutoApply: API server, workflow worker, queue processors, and integrations.
 
 ## Run Locally

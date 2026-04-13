@@ -7,6 +7,7 @@ import type { ApplicationEventWire } from '../types/feedEvent.js';
 export const feedListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   cursor: z.string().optional(),
+  since: z.string().datetime().optional(),
 });
 
 export type FeedListQuery = z.infer<typeof feedListQuerySchema>;
@@ -30,6 +31,11 @@ export async function listUserFeedPage(
   const fetchLimit = query.limit + 1;
 
   let q = col.orderBy('created_at', 'desc').limit(fetchLimit);
+
+  if (query.since) {
+    const sinceDate = new Date(query.since);
+    q = col.where('created_at', '>=', sinceDate).orderBy('created_at', 'desc').limit(fetchLimit);
+  }
 
   if (query.cursor?.trim()) {
     const curSnap = await col.doc(query.cursor.trim()).get();
